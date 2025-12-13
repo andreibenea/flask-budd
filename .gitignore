@@ -1,0 +1,29 @@
+# Virtual Environment
+.venv
+venv/
+env/
+
+# PyCharm
+.idea
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Flask
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.flaskenv
+
+# Flask session files
+flask_session/
