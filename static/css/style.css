@@ -1,0 +1,120 @@
+/*Standard config*/
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #000033; /* dark blue-black */
+    color: #ffffff; /* white text */
+    font-family: 'Courier New', monospace;
+    padding-top: 2rem;
+    max-width: 80%;
+    margin: auto;
+}
+
+nav {
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #000060;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: larger;
+    margin-bottom: 10px;
+}
+
+nav a {
+    display: block;
+    padding: 0.5rem;
+}
+
+a {
+    text-decoration: none;
+    color: cyan;
+}
+
+kbd {
+    color: yellow;
+}
+
+
+button, input, select, textarea {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+ul, ol {
+    list-style: none;
+}
+
+pre {
+    text-align: center;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+}
+
+.list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.list-budgets-item {
+    display: grid;
+    grid-template-columns: 25% 15% 60%;
+    padding: 1rem;
+    background: #001a4d;
+    border: 1px solid #00ffff;
+}
+
+.list-transactions-item {
+    display: grid;
+    grid-template-columns: 20% 20% 20% 20% 20%;
+    padding: 1rem;
+    background: #001a4d;
+    border: 1px solid #00ffff;
+}
+
+.list-budgets-header {
+    display: grid;
+    grid-template-columns: 25% 15% 60%;
+    padding: 1rem;
+    background: #003078;
+    border: 1px solid #000000;
+}
+.list-transactions-header {
+    display: grid;
+    grid-template-columns: 20% 20% 20% 20% 20%;
+    padding: 1rem;
+    background: #003078;
+    border: 1px solid #000000;
+}
+
+.header-part {
+    text-align: left;
+}
+
+.header-part-right {
+    text-align: center;
+}
+
+
+.item-part-container {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.4rem;
+}
+

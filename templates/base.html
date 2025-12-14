@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <title>{% block title %}Budget Tracker{% endblock %}</title>
+</head>
+<body>
+<nav>
+    <a href="/"><kbd>[H]</kbd>ome</a>
+    <a href="/transactions"><kbd>[T]</kbd>ransactions</a>
+    <a href="/transactions/add"><kbd>[N]</kbd>ew Transaction</a>
+    <a href="/budgets"><kbd>[B]</kbd>udgets</a>
+    <a href="/budgets/add"><kbd>[G]</kbd>enerate Budget</a>
+</nav>
+
+<div class="container">
+    {% block content %}
+        Just the base template.
+    {% endblock %}
+</div>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
