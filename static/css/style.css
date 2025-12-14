@@ -1,4 +1,15 @@
-/*Standard config*/
+:root {
+    /* Color palette */
+    --bg-dark: #0a0e27;
+    --bg-medium: #1a1f3a;
+    --bg-light: #2a3150;
+    --accent-primary: #64ffda;
+    --accent-secondary: #5c7cfa;
+    --text-main: #e4e4e7;
+    --text-dim: #a1a1aa;
+    --border: #3f4462;
+    --danger: #ef4444;
+}
 
 * {
     margin: 0;
@@ -7,8 +18,8 @@
 }
 
 body {
-    background: #000033; /* dark blue-black */
-    color: #ffffff; /* white text */
+    background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-medium) 100%);
+    color: var(--text-main);
     font-family: 'Courier New', monospace;
     padding-top: 2rem;
     max-width: 80%;
@@ -20,7 +31,8 @@ nav {
     top: 0;
     left: 0;
     right: 0;
-    background: #000060;
+    background: var(--bg-light);
+    border-bottom: 2px solid var(--accent-primary);
     color: #ffffff;
     display: flex;
     align-items: center;
@@ -38,17 +50,44 @@ nav a {
 
 a {
     text-decoration: none;
-    color: cyan;
+    color: var(--accent-primary);
 }
 
 kbd {
-    color: yellow;
+    color: var(--accent-secondary);
 }
 
 
 button, input, select, textarea {
     font-family: inherit;
     font-size: inherit;
+}
+
+button.edit,
+button.delete {
+    background: none;
+    border: 1px solid var(--accent-primary);
+    color: var(--accent-primary);
+    cursor: pointer;
+    padding: 0.3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button.edit:hover {
+    background: #00ffff;
+    color: #000033;
+}
+
+button.delete {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+button.delete:hover {
+    background: #ff0000;
+    color: #ffffff;
 }
 
 ul, ol {
@@ -72,41 +111,43 @@ pre {
 
 .list-budgets-item {
     display: grid;
-    grid-template-columns: 25% 15% 60%;
+    grid-template-columns: 20% 15% 15% 40% 5% 5%;
     padding: 1rem;
-    background: #001a4d;
-    border: 1px solid #00ffff;
 }
 
 .list-transactions-item {
     display: grid;
-    grid-template-columns: 20% 20% 20% 20% 20%;
+    grid-template-columns: 20% 15% 15% 20% 20% 5% 5%;
     padding: 1rem;
-    background: #001a4d;
-    border: 1px solid #00ffff;
+}
+
+.list-budgets-item,
+.list-transactions-item {
+    background: rgba(42, 49, 80, 0.6);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
 }
 
 .list-budgets-header {
     display: grid;
-    grid-template-columns: 25% 15% 60%;
+    grid-template-columns: 20% 15% 15% 40% 5% 5%;
     padding: 1rem;
-    background: #003078;
-    border: 1px solid #000000;
 }
+
 .list-transactions-header {
     display: grid;
-    grid-template-columns: 20% 20% 20% 20% 20%;
+    grid-template-columns: 20% 15% 15% 20% 20% 5% 5%;
     padding: 1rem;
-    background: #003078;
-    border: 1px solid #000000;
+}
+
+.list-budgets-header,
+.list-transactions-header {
+    background: var(--bg-light);
+    border: 1px solid var(--border);
 }
 
 .header-part {
     text-align: left;
-}
-
-.header-part-right {
-    text-align: center;
 }
 
 
@@ -114,7 +155,6 @@ pre {
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    justify-content: center;
     gap: 0.4rem;
 }
 

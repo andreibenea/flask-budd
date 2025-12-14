@@ -3,20 +3,13 @@
 {% block content %}
     <div class="list-container">
         <div class="list-budgets-header">
+            <div class="header-part">Created</div>
             <div class="header-part">Name</div>
             <div class="header-part">Limit</div>
-            <div class="header-part-right">Categories</div>
+            <div class="header-part">Categories</div>
+            <div class="header-part"></div>
+            <div class="header-part"></div>
         </div>
-        {% for budget in budgets %}
-            <div class="list-budgets-item">
-                <div class="item-part">{{ budget.name }}</div>
-                <div class="item-part">{{ budget.limit }}</div>
-                <div class="item-part-container">
-                    {% for cat in budget.categories %}
-                        <div class="item-part">{{ cat.name }}</div>
-                    {% endfor %}
-                </div>
-            </div>
-        {% endfor %}
+        <div class="list-budgets-content"></div>
     </div>
 {% endblock %}
