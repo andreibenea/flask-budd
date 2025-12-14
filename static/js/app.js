@@ -5,50 +5,16 @@ let selectedIndex = 0;
 let deletionMode = false;
 let deletionChoice = 0; // 0 = Yes, 1 = No
 
-// function attachClickListeners() {
-//     for (let i = 0; i < cards.length; i++) {
-//         cards[i].addEventListener('click', (e) => {
-//             if (e.target.closest('button')) {
-//                 return;
-//             }
-//             selectedIndex = i;
-//             updateSelection();
-//         });
-//
-//         const editBtn = cards[i].querySelector('button.edit');
-//         if (editBtn) {
-//             editBtn.addEventListener('click', (e) => {
-//                 e.stopPropagation();
-//                 selectedIndex = i;
-//                 updateSelection();
-//                 editSelected();
-//             });
-//         }
-//
-//         const deleteBtn = cards[i].querySelector('button.delete');
-//         if (deleteBtn) {
-//             deleteBtn.addEventListener('click', (e) => {
-//                 e.stopPropagation();
-//                 selectedIndex = i;
-//                 updateSelection();
-//                 showDeletionPrompt();
-//             });
-//         }
-//     }
-// }
-
 
 function setupEventDelegation() {
     const container = document.querySelector(".list-container");
 
-    // Single click listener on the container
     container.addEventListener('click', (e) => {
         const card = e.target.closest('.row-card');
         if (!card) return;
 
         const cardIndex = Array.from(cards).indexOf(card);
 
-        // Check if clicking edit button
         if (e.target.closest('button.edit')) {
             e.stopPropagation();
             selectedIndex = cardIndex;
@@ -57,7 +23,6 @@ function setupEventDelegation() {
             return;
         }
 
-        // Check if clicking delete button
         if (e.target.closest('button.delete')) {
             e.stopPropagation();
             selectedIndex = cardIndex;
@@ -66,13 +31,13 @@ function setupEventDelegation() {
             return;
         }
 
-        // Click on card itself (not on buttons)
         if (!e.target.closest('button')) {
             selectedIndex = cardIndex;
             updateSelection();
         }
     });
 }
+
 document.addEventListener("keydown", (e) => {
     const navKeys = ['ArrowUp', 'ArrowDown', 'k', 'j', 'Enter', 'Backspace', 'Delete', 'Escape', 'ArrowLeft', 'ArrowRight'];
     if (navKeys.includes(e.key)) {
