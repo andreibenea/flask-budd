@@ -55,7 +55,9 @@ def budget_page(budget_id):
 def api_transactions():
     """Get all transactions"""
     transactions = Transaction.query.all()
-    return {'transactions': [t.to_dict() for t in transactions]}
+    tr_list = list(t.to_dict() for t in transactions)
+    tr_list.sort(key=lambda t: t["timestamp"], reverse=True)
+    return {'transactions': tr_list}
 
 
 @app.route("/api/transactions/new", methods=["POST"])
@@ -150,6 +152,23 @@ def api_budget_details(budget_id):
         db.session.add(budget)
         db.session.commit()
         return budget.to_dict()
+
+
+# def sort_stuff(stuff):
+#     if len(stuff) == 0:
+#         return stuff
+#     sorted_stuff = []
+#     mid = len(sorted_stuff) / 2
+#     left, right = sorted_stuff[:mid], sorted_stuff[mid:]
+#     i = 0
+#     j = 0
+#     for i in range(len(left)):
+#         if left[i].timestamp < right[j].timestamp:
+#             sorted_stuff.append(left[i])
+#             i += 1
+#         else:
+#             sorted_stuff.append(right[j])
+#             j += 1
 
 
 if __name__ == "__main__":

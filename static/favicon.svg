@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <!-- Notebook cover -->
-  <rect x="6" y="4" width="20" height="24" rx="1" fill="#64ffda"/>
+  <rect x="6" y="4" width="20" height="24" rx="1" fill="#ff6a00"/>
 
   <!-- Binding holes -->
   <circle cx="9" cy="8" r="1" fill="#0a0e27"/>

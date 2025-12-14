@@ -1,14 +1,19 @@
 :root {
-    /* Color palette */
-    --bg-dark: #0a0e27;
-    --bg-medium: #1a1f3a;
-    --bg-light: #2a3150;
-    --accent-primary: #64ffda;
-    --accent-secondary: #5c7cfa;
-    --text-main: #e4e4e7;
-    --text-dim: #a1a1aa;
-    --border: #3f4462;
-    --danger: #ef4444;
+    --menu-height: 40px;
+    --bg-dark: #000000;
+    --bg-medium: #1a1a1a;
+    --bg-light: #2a2a2a;
+    --accent-primary: #ff6a00;
+    --accent-secondary: #ffd700;
+    --accent-tertiary: #ffb200;
+    --text-main: #ffffff;
+    --text-dim: #808080;
+    --border: #333333;
+    --danger: #ff0000;
+    --danger-hover: #ff4400;
+    --edit-hover-bg: #ff4400;
+    --edit-hover-text: #000000;
+    --delete-hover-text: #000000;
 }
 
 * {
@@ -21,9 +26,22 @@ body {
     background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-medium) 100%);
     color: var(--text-main);
     font-family: 'Courier New', monospace;
-    padding-top: 2rem;
+    padding: 0.4rem 0.4rem 10rem 0.4rem;
     max-width: 80%;
+    height: 100vh;
     margin: auto;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 35px;
+    background: linear-gradient(to bottom, transparent 0%, var(--bg-dark) 100%);
+    pointer-events: none;
+    z-index: 999;
 }
 
 nav {
@@ -40,7 +58,6 @@ nav {
     flex-wrap: wrap;
     justify-content: center;
     font-size: larger;
-    margin-bottom: 10px;
 }
 
 nav a {
@@ -67,27 +84,21 @@ button.edit,
 button.delete {
     background: none;
     border: 1px solid var(--accent-primary);
-    color: var(--accent-primary);
+    color: var(--accent-secondary);
     cursor: pointer;
-    padding: 0.3rem;
+    padding: 0.46rem;
     display: inline-flex;
-    align-items: center;
     justify-content: center;
 }
 
 button.edit:hover {
-    background: #00ffff;
-    color: #000033;
-}
-
-button.delete {
-    border-color: var(--danger);
-    color: var(--danger);
+    background: var(--edit-hover-bg);
+    color: var(--edit-hover-text);
 }
 
 button.delete:hover {
-    background: #ff0000;
-    color: #ffffff;
+    background: var(--danger-hover);
+    color: var(--delete-hover-text);
 }
 
 ul, ol {
@@ -101,60 +112,215 @@ pre {
 .container {
     display: flex;
     flex-direction: column;
+    height: calc(99vh - var(--menu-height));
+    padding-bottom: 25px
+
 }
 
 .list-container {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    padding: 0.3rem;
+    overflow: hidden;
+    overflow-y: scroll;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-.list-budgets-item {
-    display: grid;
-    grid-template-columns: 20% 15% 15% 40% 5% 5%;
-    padding: 1rem;
+
+.list-container::-webkit-scrollbar {
+    display: none;
 }
 
-.list-transactions-item {
-    display: grid;
-    grid-template-columns: 20% 15% 15% 20% 20% 5% 5%;
-    padding: 1rem;
-}
-
-.list-budgets-item,
-.list-transactions-item {
-    background: rgba(42, 49, 80, 0.6);
+.row-card {
+    background: var(--bg-medium);
     border: 1px solid var(--border);
-    backdrop-filter: blur(10px);
-}
-
-.list-budgets-header {
-    display: grid;
-    grid-template-columns: 20% 15% 15% 40% 5% 5%;
+    border-radius: 4px;
     padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    position: relative;
 }
 
-.list-transactions-header {
-    display: grid;
-    grid-template-columns: 20% 15% 15% 20% 20% 5% 5%;
-    padding: 1rem;
+.row-card.selected {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 0;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.3);
 }
 
-.list-budgets-header,
-.list-transactions-header {
+.deletion-prompt {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    z-index: 10;
+}
+
+.prompt-content {
+    text-align: center;
+}
+
+.prompt-content p {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: var(--text-main);
+}
+
+.prompt-options {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.prompt-option {
     background: var(--bg-light);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
+    color: var(--text-main);
+    padding: 0.5rem 1.5rem;
+    cursor: pointer;
+    font-size: 1rem;
+    border-radius: 4px;
 }
 
-.header-part {
-    text-align: left;
+.prompt-option.active {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary);
+    color: var(--text-main);
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.5);
 }
 
+.prompt-option:hover {
+    border-color: var(--accent-secondary);
+}
 
-.item-part-container {
+.card-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-category {
+    font-weight: bold;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+
+.card-amount {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.card-amount.income {
+    color: #00ff00;
+}
+
+.card-amount.expense {
+    color: var(--danger);
+}
+
+.card-extras {
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.4rem;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
 }
 
+.card-notes {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    padding: 0.5rem;
+    border-radius: 3px;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    min-height: 2rem;
+    flex: 1;
+}
+
+.card-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    flex-shrink: 0;
+}
+
+.budget-card {
+    background: var(--bg-medium);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.budget-card .card-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.budget-card .card-name {
+    font-weight: bold;
+    color: var(--text-main);
+    font-size: 1.1rem;
+}
+
+.budget-card .card-limit {
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--accent-primary);
+}
+
+.card-timestamp {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+.budget-card .card-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.category-tag {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: var(--accent-secondary);
+}
+
+.budget-card .card-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+
+@media screen and (max-width: 968px) {
+    :root {
+        --menu-height: 80px;
+    }
+}
+
+@media screen and (max-width: 570px) {
+    :root {
+        --menu-height: 120px;
+    }
+}
+
+@media screen and (max-width: 399px) {
+    :root {
+        --menu-height: 160px;
+    }
+}

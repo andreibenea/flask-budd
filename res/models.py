@@ -4,6 +4,8 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
+
+
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
@@ -18,11 +20,11 @@ class Transaction(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "amount": self.amount,
-            "category": self.category,
+            "amount": f"${self.amount:.2f}",
+            "category": self.category.capitalize(),
             "kind": self.kind,
             "notes": self.notes,
-            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+            "timestamp": self.timestamp.isoformat()[:19].replace("T", " ") if self.timestamp else None
         }
 
 
@@ -37,7 +39,7 @@ class Category(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "name": self.name,
+            "name": self.name.capitalize(),
             "budget_id": self.budget_id,
         }
 
@@ -60,7 +62,7 @@ class Budget(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "limit": self.limit,
+            "limit": f"${self.limit}",
             "categories": cats,
-            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+            "timestamp": self.timestamp.isoformat()[:19].replace("T", " ") if self.timestamp else None
         }
