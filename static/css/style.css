@@ -45,6 +45,7 @@ body::after {
 }
 
 nav {
+    padding: 2px;
     position: relative;
     top: 0;
     left: 0;
@@ -70,14 +71,45 @@ a {
     color: var(--accent-primary);
 }
 
+nav a:hover {
+    background: var(--accent-primary);
+    color: var(--text-main);
+    border-radius: 3px;
+}
+
 kbd {
     color: var(--accent-secondary);
 }
 
+kbd:hover {
+    color: var(--text-main)
+}
+
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+select:focus {
+    -webkit-appearance: unset;
+    -moz-appearance: unset;
+    appearance: auto;
+}
+
 
 button, input, select, textarea {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    max-width: 100%;
+    width: 100%;
+    align-self: stretch;
     font-family: inherit;
     font-size: inherit;
+    text-align: left;
+    padding: 0.75rem;
+    border-radius: 3px;
 }
 
 button.edit,
@@ -92,12 +124,13 @@ button.delete {
 }
 
 button.edit:hover {
-    background: var(--edit-hover-bg);
+    background: var(--accent-primary);
     color: var(--edit-hover-text);
 }
 
 button.delete:hover {
     background: var(--danger-hover);
+    border-color: var(--danger-hover);
     color: var(--delete-hover-text);
 }
 
@@ -107,6 +140,52 @@ ul, ol {
 
 pre {
     text-align: center;
+}
+
+form {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    text-align: left;
+    padding: 1rem;
+    gap: 1rem;
+    margin: 0 auto;
+}
+
+form * {
+    padding: 0.75rem;
+}
+
+form input:focus, select:focus, textarea:focus {
+    outline: 1px dashed var(--accent-primary);
+    outline-offset: 0;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.3);
+    color: var(--accent-secondary);
+}
+
+form button:focus {
+    outline: 1px dashed var(--accent-primary);
+    background: var(--accent-secondary);
+    outline-offset: 0;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.3);
+    color: #000000;
+}
+
+
+form button {
+    color: var(--text-main);
+    background: var(--accent-primary);
+    border: 2px solid var(--accent-primary);
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+form button:hover {
+    background: var(--accent-tertiary);
+    border-color: var(--accent-tertiary);
 }
 
 .container {
@@ -122,8 +201,7 @@ pre {
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.3rem;
-    overflow: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
@@ -154,10 +232,36 @@ pre {
     position: relative;
 }
 
+.row-card.empty-state {
+    text-align: center;
+    opacity: 0.7;
+}
+
 .row-card.selected {
     outline: 2px solid var(--accent-primary);
     outline-offset: 0;
     box-shadow: 0 0 10px rgba(255, 106, 0, 0.3);
+}
+
+.form-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: var(--bg-medium);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    min-width: 200px;
+    min-height: 145px;
+}
+
+.form-card label {
+    color: var(--accent-secondary);
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .deletion-prompt {
@@ -215,16 +319,16 @@ pre {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    font-size: 1.1rem;
 }
 
 .card-category {
     font-weight: bold;
     color: var(--text-main);
-    font-size: 0.95rem;
 }
 
 .card-amount {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     font-weight: bold;
 }
 
@@ -249,7 +353,6 @@ pre {
     border: 1px solid var(--border);
     padding: 0.5rem;
     border-radius: 3px;
-    color: var(--text-dim);
     font-size: 0.85rem;
     min-height: 2rem;
     flex: 1;
@@ -262,43 +365,22 @@ pre {
     flex-shrink: 0;
 }
 
-.budget-card {
-    background: var(--bg-medium);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
 
-.budget-card .card-main {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.budget-card .card-name {
+.card-name {
     font-weight: bold;
     color: var(--text-main);
     font-size: 1.1rem;
 }
 
-.budget-card .card-limit {
-    font-size: 1.25rem;
+.card-limit {
+    font-size: 1.1rem;
     font-weight: bold;
-    color: var(--accent-primary);
+    color: var(--text-main);
 }
 
 .card-timestamp {
     color: var(--text-dim);
     font-size: 0.85rem;
-}
-
-.budget-card .card-categories {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
 }
 
 .category-tag {
@@ -307,17 +389,40 @@ pre {
     padding: 0.25rem 0.75rem;
     border-radius: 12px;
     font-size: 0.85rem;
-    color: var(--accent-secondary);
 }
 
-.budget-card .card-actions {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: flex-end;
+/* Chrome, Safari, Edge, Opera */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
+/* Firefox */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
 
-@media screen and (max-width: 968px) {
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    height: 3rem; /* Or whatever height works best */
+}
+
+textarea {
+    resize: none;
+    overflow-y: auto; /* Allow scrolling if text is too long */
+}
+
+body:has(input:focus) nav kbd,
+body:has(button:focus) nav kbd,
+body:has(textarea:focus) nav kbd,
+body:has(select:focus) nav kbd {
+    color: var(--accent-primary);
+}
+
+@media screen and (max-width: 984px) {
     :root {
         --menu-height: 80px;
     }
@@ -332,5 +437,11 @@ pre {
 @media screen and (max-width: 399px) {
     :root {
         --menu-height: 160px;
+    }
+}
+
+@media screen and (max-width: 330px) {
+    :root {
+        --menu-height: 200px;
     }
 }

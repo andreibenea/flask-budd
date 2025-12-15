@@ -5,6 +5,67 @@ let selectedIndex = 0;
 let deletionMode = false;
 let deletionChoice = 0; // 0 = Yes, 1 = No
 
+let formSelected = false;
+let currentFieldIndex = -1; // -1 means no field selected
+let formFields = [];
+
+
+function initializeFormSelection() {
+    const form = document.querySelector(".transaction-form") || document.querySelector(".budget-form");
+    if (!form) return;
+
+    formFields = Array.from(form.querySelectorAll('input, select, textarea, button[type="submit"]'));
+
+    formSelected = true;
+    form.classList.add('selected');
+
+    if (formFields.length > 0) {
+        currentFieldIndex = 0;
+        formFields[0].focus();
+        formFields[0].select(); // Select text if it's a text input
+    }
+}
+
+function saveTransaction(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const editingId = sessionStorage.getItem('editingTransactionId');
+
+    const transactionData = {
+        amount: formData.get('amount'),
+        category: formData.get('category'),
+        kind: formData.get('kind'),
+        notes: formData.get('notes') || '',
+    };
+
+    const url = editingId
+        ? `/api/transactions/${editingId}`
+        : '/api/transactions/new';
+    const method = editingId ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(transactionData)
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to create transaction');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Transaction created:', data);
+            window.location.href = '/transactions';
+        })
+        .catch(error => {
+            console.error('Error creating transaction:', error);
+            alert('Failed to create transaction. Please try again.');
+        });
+}
 
 function setupEventDelegation() {
     const container = document.querySelector(".list-container");
@@ -39,18 +100,30 @@ function setupEventDelegation() {
 }
 
 document.addEventListener("keydown", (e) => {
+    if (formSelected && currentFieldIndex >= 0) {
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            navigateFormFields(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            blurCurrentField();
+        }
+        return;
+    }
+
     const navKeys = ['ArrowUp', 'ArrowDown', 'k', 'j', 'Enter', 'Backspace', 'Delete', 'Escape', 'ArrowLeft', 'ArrowRight'];
     if (navKeys.includes(e.key)) {
         e.preventDefault();
     }
+
     if (deletionMode) {
         switch (e.key) {
             case 'ArrowLeft':
-                deletionChoice = 0; // Yes
+                deletionChoice = 0;
                 updateDeletionPrompt();
                 break;
             case 'ArrowRight':
-                deletionChoice = 1; // No
+                deletionChoice = 1;
                 updateDeletionPrompt();
                 break;
             case 'Enter':
@@ -79,10 +152,13 @@ document.addEventListener("keydown", (e) => {
                 break;
         }
     }
+
     if (e.key === "h") window.location = "/";
     else if (e.key === "t") window.location = "/transactions";
-    else if (e.key === "n") window.location = "/transactions/add";
-    else if (e.key === "b") window.location = "/budgets";
+    else if (e.key === "n") {
+        sessionStorage.removeItem('editingTransactionId');
+        window.location = "/transactions/add";
+    } else if (e.key === "b") window.location = "/budgets";
     else if (e.key === "g") window.location = "/budgets/add";
     else if (e.key === "Escape") {
         if (window.location.pathname === "/transactions/add") {
@@ -92,6 +168,50 @@ document.addEventListener("keydown", (e) => {
         }
     }
 });
+
+function navigateFormFields(direction) {
+    if (formFields.length === 0) return;
+
+    currentFieldIndex += direction;
+
+    if (currentFieldIndex < 0) {
+        currentFieldIndex = formFields.length - 1;
+    } else if (currentFieldIndex >= formFields.length) {
+        currentFieldIndex = 0;
+    }
+
+    formFields[currentFieldIndex].focus();
+    if (formFields[currentFieldIndex].select) {
+        formFields[currentFieldIndex].select();
+    }
+}
+
+function blurCurrentField() {
+    if (currentFieldIndex >= 0 && formFields[currentFieldIndex]) {
+        formFields[currentFieldIndex].blur();
+        currentFieldIndex = -1;
+    }
+}
+
+function setupFormClickHandlers() {
+    const form = document.querySelector(".transaction-form") || document.querySelector(".budget-form");
+    if (!form) return;
+
+    formFields.forEach((field, index) => {
+        field.addEventListener('focus', () => {
+            currentFieldIndex = index;
+        });
+
+        field.addEventListener('blur', () => {
+            // Small delay to allow Tab navigation to work
+            setTimeout(() => {
+                if (document.activeElement !== formFields[currentFieldIndex]) {
+                    currentFieldIndex = -1;
+                }
+            }, 10);
+        });
+    });
+}
 
 function initializeSelection() {
     if (cards.length > 0) {
@@ -125,10 +245,23 @@ function moveDown() {
 
 function editSelected() {
     if (cards[selectedIndex]) {
-        const editButton = cards[selectedIndex].querySelector('button.edit');
-        if (editButton) {
-            editButton.click();
+        const card = cards[selectedIndex];
+        if (card.classList.contains("empty-state")) {
+            window.location = "/transactions/add";
+            return;
         }
+        const transactionId = card.querySelector('button.edit').dataset.id;
+
+        fetch(`/api/transactions/${transactionId}`)
+            .then(response => response.json())
+            .then(data => {
+                sessionStorage.setItem('editingTransactionId', transactionId);
+                window.location.href = '/transactions/add';
+            })
+            .catch(error => {
+                console.error('Error loading transaction:', error);
+                alert('Failed to load transaction for editing');
+            });
     }
 }
 
@@ -190,25 +323,34 @@ function hideDeletionPrompt() {
 function confirmDeletion() {
     if (deletionChoice === 0) { // Yes selected
         if (cards[selectedIndex]) {
-            const deleteButton = cards[selectedIndex].querySelector('button.delete');
-            const transactionId = cards[selectedIndex].querySelector("button.delete").dataset.id;
+            const itemId = cards[selectedIndex].querySelector("button.delete").dataset.id;
             const cardToRemove = cards[selectedIndex]
-            fetch(`api/transactions/${transactionId}`, {
+            let apiEndpoint;
+            if (window.location.pathname === "/transactions") {
+                apiEndpoint = `/api/transactions/${itemId}`;
+            } else if (window.location.pathname === "/budgets") {
+                apiEndpoint = `/api/budgets/${itemId}`;
+            } else {
+                console.error('Unknown page for deletion');
+                hideDeletionPrompt();
+                return;
+            }
+            fetch(apiEndpoint, {
                 method: "DELETE"
             })
                 .then(response => {
                         if (response.ok) {
                             cardToRemove.remove();
-                            const remainingCards = document.getElementsByClassName("transaction-card");
                             if (cards.length === 0) {
                                 selectedIndex = 0;
+                                window.location = "/transactions";
                             } else if (selectedIndex >= cards.length) {
                                 selectedIndex = cards.length - 1;
                             }
                             updateSelection();
-                            attachClickListeners();
+                            hideDeletionPrompt();
                         } else {
-                            console.error('Failed to delete transaction');
+                            console.error('Failed to delete item');
                             hideDeletionPrompt();
                         }
                     }
@@ -228,7 +370,8 @@ async function loadTransactions() {
     const data = await response.json();
 
     const container = document.querySelector(".list-container");
-    container.innerHTML = data.transactions.map(t => `
+    if ("transactions" in data) {
+        container.innerHTML = data.transactions.map(t => `
     <div class="row-card">
         <div class="card-main">
             <div class="card-category">${t.category}</div>
@@ -253,8 +396,16 @@ async function loadTransactions() {
         </div>
     </div>
 `).join("");
+    } else {
+        container.innerHTML = `
+    <div class="row-card empty-state">
+        <div class="card-main">
+            <div class="card-category">No transactions found! Press Enter or Return to add one!</div>
+        </div>
+    </div>
+    `;
+    }
     initializeSelection();
-    // attachClickListeners();
 }
 
 async function loadBudgets() {
@@ -269,33 +420,90 @@ async function loadBudgets() {
             <div class="card-limit">${b.limit}</div>
         </div>
         <div class="card-timestamp">${b.timestamp}</div>
-        <div class="card-categories">
-            ${b.categories.map(cat => `<span class="category-tag">${cat.name}</span>`).join('')}
-        </div>
-        <div class="card-actions">
-            <button class="edit" data-id="${b.id}">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.293l6.293-6.293z"/>
-                </svg>
-            </button>
-            <button class="delete" data-id="${b.id}">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
-                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
-                </svg>
-            </button>
+        <div class="card-extras">
+            <div class="card-categories">
+               ${b.categories.map(cat => `<span class="category-tag">${cat.name}</span>`).join('')}
+            </div>
+            <div class="card-actions">
+                <button class="edit" data-id="${b.id}">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.293l6.293-6.293z"/>
+                    </svg>
+                </button>
+                <button class="delete" data-id="${b.id}">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                    </svg>
+                </button>
+            </div>
         </div>
     </div>
 `).join("");
     initializeSelection();
-    // attachClickListeners();
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    const navLinks = document.querySelectorAll('nav a[href="/transactions/add"]');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function () {
+            sessionStorage.removeItem('editingTransactionId');
+        });
+    });
+});
 
 if (window.location.pathname === "/transactions") {
     loadTransactions();
     setupEventDelegation();
-    // document.addEventListener("DOMContentLoaded", initializeSelection)
 } else if (window.location.pathname === "/budgets") {
     loadBudgets();
     setupEventDelegation();
+} else if (window.location.pathname === "/transactions/add") {
+    const form = document.querySelector(".transaction-form");
+    if (form) {
+        const editingId = sessionStorage.getItem('editingTransactionId');
+        const amountInput = form.querySelector('input[name="amount"]');
+        if (amountInput) {
+            amountInput.addEventListener('input', function (e) {
+                if (this.value < 0) {
+                    this.value = '';
+                }
+            });
+            amountInput.addEventListener('paste', function (e) {
+                setTimeout(() => {
+                    if (this.value < 0) {
+                        this.value = '';
+                    }
+                }, 0);
+            });
+        }
+        if (editingId) {
+            fetch(`/api/transactions/${editingId}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('amount').value = parseFloat(data.amount.replace('$', ''));
+                    document.getElementById('kind').value = data.kind;
+                    document.getElementById('category').value = data.category;
+                    document.getElementById('notes').value = data.notes || '';
+
+                    form.querySelector('button[type="submit"]').textContent = 'Save Transaction';
+                    initializeFormSelection();
+                    setupFormClickHandlers();
+                })
+                .catch(error => {
+                    console.error('Error loading transaction:', error);
+                    sessionStorage.removeItem('editingTransactionId');
+                });
+        } else {
+            initializeFormSelection();
+            setupFormClickHandlers();
+        }
+        form.addEventListener('submit', saveTransaction);
+    }
+} else if (window.location.pathname === "/budgets/add") {
+    const form = document.querySelector(".budget-form");
+    if (form) {
+        initializeFormSelection();
+        setupFormClickHandlers();
+    }
 }

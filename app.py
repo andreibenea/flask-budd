@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from res.models import Transaction, Budget, Category, db
 
 app = Flask(__name__)
@@ -20,25 +20,25 @@ def transactions_page():
     return render_template("transactions.html")
 
 
-@app.route("/budgets")
-def budgets_page():
-    return render_template("budgets.html")
-
-
 @app.route("/transactions/add")
 def add_transaction_page():
-    return render_template("create_transaction.html")
-
-
-@app.route("/budgets/add")
-def add_budget_page():
-    return render_template("create_budget.html")
+    return render_template("transaction.html")
 
 
 @app.route("/transaction/<int:transaction_id>")
 def transaction_page(transaction_id):
     transaction = Transaction.query.get(transaction_id)
     return render_template("transaction.html", transaction=transaction)
+
+
+@app.route("/budgets")
+def budgets_page():
+    return render_template("budgets.html")
+
+
+@app.route("/budgets/add")
+def add_budget_page():
+    return render_template("budget.html")
 
 
 @app.route("/budget/<int:budget_id>")
@@ -51,22 +51,34 @@ def budget_page(budget_id):
 # API ENDPOINTS
 # ===================================================================
 
+@app.route("/api/balance", methods=["GET"])
+def get_balance():
+    transactions = Transaction.query.all()
+    incomes = sum(t.amount for t in list(filter(lambda t: t.kind == "income", transactions)))
+    expenses = sum(t.amount for t in list(filter(lambda t: t.kind == "expense", transactions)))
+    balance = incomes - expenses
+    return jsonify({"balance": balance})
+
+
 @app.route("/api/transactions", methods=["GET"])
 def api_transactions():
     """Get all transactions"""
     transactions = Transaction.query.all()
     tr_list = list(t.to_dict() for t in transactions)
     tr_list.sort(key=lambda t: t["timestamp"], reverse=True)
+    if len(tr_list) == 0:
+        return jsonify({"error": "No transactions found"})
     return {'transactions': tr_list}
 
 
 @app.route("/api/transactions/new", methods=["POST"])
 def api_transactions_new():
     """Create a new transaction"""
-    amount = request.form.get("amount")
-    category = request.form.get("category")
-    kind = request.form.get("kind")
-    notes = request.form.get("notes")
+    data = request.get_json()
+    amount = data.get("amount")
+    category = data.get("category")
+    kind = data.get("kind")
+    notes = data.get("notes")
     new_transaction = Transaction()
     new_transaction.amount = amount
     new_transaction.category = category
@@ -74,8 +86,10 @@ def api_transactions_new():
     new_transaction.notes = notes
     db.session.add(new_transaction)
     db.session.commit()
-    transactions = Transaction.query.all()
-    return {'transactions': [t.to_dict() for t in transactions]}
+    return jsonify({
+        'success': True,
+        'transaction': new_transaction.to_dict()
+    }), 201
 
 
 @app.route("/api/transactions/<int:transaction_id>", methods=["GET", "PUT", "DELETE"])
@@ -91,10 +105,11 @@ def api_transaction_details(transaction_id):
         db.session.commit()
         return api_transactions()
     elif request.method == 'PUT':
-        transaction.amount = request.form.get("amount")
-        transaction.category = request.form.get("category")
-        transaction.kind = request.form.get("kind")
-        transaction.notes = request.form.get("notes")
+        data = request.get_json()
+        transaction.amount = data.get("amount")
+        transaction.category = data.get("category")
+        transaction.kind = data.get("kind")
+        transaction.notes = data.get("notes")
         db.session.add(transaction)
         db.session.commit()
         return api_transactions()

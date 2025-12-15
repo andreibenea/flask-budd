@@ -1,5 +1,29 @@
 {% extends "base.html" %}
 
 {% block content %}
-    This is the transaction details menu.
+    <div class="new-transaction-container">
+        <form method="POST" class="transaction-form">
+            <div class="form-card">
+                <label for="amount">Amount</label>
+                <input type="number" id="amount" name="amount" min="0" step="0.01" autocomplete="off" required>
+            </div>
+            <div class="form-card">
+                <label for="kind">Type</label>
+                <select id="kind" name="kind" autocomplete="off" required>
+                    <option value=""></option>
+                    <option value="income">Income</option>
+                    <option value="expense">Expense</option>
+                </select>
+            </div>
+            <div class="form-card">
+                <label for="category">Category</label>
+                <input type="text" id="category" name="category" autocomplete="off" required>
+            </div>
+            <div class="form-card">
+                <label for="notes">Notes</label>
+                <textarea id="notes" name="notes" autocomplete="off"></textarea>
+            </div>
+            <button type="submit">Add Transaction</button>
+        </form>
+    </div>
 {% endblock %}

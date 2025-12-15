@@ -4,8 +4,6 @@ from flask_sqlalchemy import SQLAlchemy
 db = SQLAlchemy()
 
 
-
-
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     amount = db.Column(db.Float, nullable=False)
@@ -62,7 +60,7 @@ class Budget(db.Model):
         return {
             "id": self.id,
             "name": self.name,
-            "limit": f"${self.limit}",
+            "limit": f"${self.limit:.2f}",
             "categories": cats,
             "timestamp": self.timestamp.isoformat()[:19].replace("T", " ") if self.timestamp else None
         }
