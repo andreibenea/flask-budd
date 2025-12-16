@@ -15,9 +15,13 @@
                     <option value="expense">Expense</option>
                 </select>
             </div>
-            <div class="form-card">
-                <label for="category">Category</label>
-                <input type="text" id="category" name="category" autocomplete="off" required>
+            <div class="form-card" id="category-card">
+                <label>Category</label>
+                <div class="custom-select" id="category-select" tabindex="0">
+                    <div class="select-selected"></div>
+                    <div class="select-items select-hide"></div>
+                </div>
+                <input type="hidden" id="category" name="category" required>
             </div>
             <div class="form-card">
                 <label for="notes">Notes</label>

@@ -1,6 +1,8 @@
-const form = document.querySelector(".transaction-form");
-const cards = document.getElementsByClassName("row-card")
+// Imports
+import {CATEGORIES, ROUTES, API_ENDPOINTS} from "./config.js";
 
+
+// State Trackers
 let selectedIndex = 0;
 let deletionMode = false;
 let deletionChoice = 0; // 0 = Yes, 1 = No
@@ -10,8 +12,223 @@ let currentFieldIndex = -1; // -1 means no field selected
 let formFields = [];
 
 
-function initializeFormSelection() {
+// Main initialization
+document.addEventListener('DOMContentLoaded', async function () {
+    const path = window.location.pathname;
+
+    // Initialize global navigation shortcuts
+    setupGlobalKeyboardShortcuts();
+
+    // Route to appropriate page initializer
+    await initializePage(path);
+});
+
+
+// Page controller
+async function initializePage(path) {
+    switch (path) {
+        case ROUTES.TRANSACTIONS:
+            await initTransactionsListPage();
+            break;
+        case ROUTES.TRANSACTIONS_ADD:
+            await initTransactionFormPage();
+            break;
+        case ROUTES.BUDGETS:
+            await initBudgetsListPage();
+            break;
+        case ROUTES.BUDGETS_ADD:
+            await initBudgetFormPage();
+            break;
+        case ROUTES.HOME:
+            initHomePage();
+            break;
+    }
+}
+
+function initHomePage() {
+    // Load and display summary stats
+    // loadDashboardSummary();
+
+    // Maybe show recent transactions
+    // loadRecentActivity();
+
+    // Charts or graphs
+    // initializeCharts();
+}
+
+async function initTransactionsListPage() {
+    // Load and display transactions from API
+    await loadTransactions()
+    // Set up card selection system (keyboard navigation)
+    setupCardListNavigation();
+    // Set up click handlers for edit/delete buttons
+    setupEventDelegation();
+    // Initialize deletion prompt system
+    initializeDeletionPrompt();
+}
+
+
+async function initTransactionFormPage() {
     const form = document.querySelector(".transaction-form") || document.querySelector(".budget-form");
+    if (!form) {
+        console.error('Transaction form not found');
+        return;
+    }
+    // Set up form field navigation (Tab, Escape)
+    initializeFormSelection(form);
+    setupFormClickHandlers(form);
+    // Set up transaction-specific form logic
+    initTransactionFormSpecifics();
+    // Handle amount input validation (no negative numbers)
+    setupAmountValidation(form);
+    // Check if editing an existing transaction
+    const editingId = sessionStorage.getItem('editingTransactionId');
+
+    if (editingId) {
+        // Load existing transaction data into form
+        await loadTransactionForEditing(editingId, form);
+    }
+    form.addEventListener('submit', saveTransaction);
+}
+
+async function initBudgetsListPage() {
+    // 1. Load and display budgets from API
+    await loadBudgets();
+    // 2. Set up card selection system (keyboard navigation)
+    setupCardListNavigation();
+    // 3. Set up click handlers for edit/delete buttons
+    setupEventDelegation();
+    // 4. Initialize deletion prompt system
+    initializeDeletionPrompt();
+}
+
+async function initBudgetFormPage() {
+    const form = document.querySelector(".budget-form");
+    if (!form) {
+        console.error('Budget form not found');
+        return;
+    }
+
+    initializeFormSelection(form);
+    setupFormClickHandlers(form);
+    initBudgetFormSpecifics();
+    setupAmountValidation(form);
+
+    const editingId = sessionStorage.getItem('editingBudgetId');
+
+    if (editingId) {
+        try {
+            // Load existing budget data into form
+            await loadBudgetForEditing(editingId, form);
+        } catch (error) {
+            console.error('Failed to initialize budget form with editing data:', error);
+        }
+    }
+
+    // 5. Set up form submission handler
+    form.addEventListener('submit', saveBudget);
+}
+
+function initBudgetFormSpecifics() {
+    // Budget form is currently simpler than transaction form
+    // No dynamic dropdowns or conditional fields
+
+    // If you add features like:
+    // - Category multi-select
+    // - Budget type selection (monthly, yearly, etc.)
+    // - Recurring budget options
+    // Then add that logic here
+
+    // For now, this can be empty or just a placeholder
+    console.log('Budget form initialized');
+}
+
+async function loadBudgetForEditing(editingId, form) {
+    const response = await fetch(`${API_ENDPOINTS.budgets}/${editingId}`);
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch budget');
+    }
+
+    const data = await response.json();
+
+    const nameInput = document.getElementById('name');
+    if (nameInput) nameInput.value = data.name || '';
+
+    const limitInput = document.getElementById('limit');
+    if (limitInput && data.limit) {
+        limitInput.value = parseFloat(data.limit.replace('$', ''));
+    }
+
+    const categoriesInput = document.getElementById('categories');
+    if (categoriesInput && data.categories) {
+        if (Array.isArray(data.categories)) {
+            categoriesInput.value = data.categories.map(cat => cat.name).join(', ');
+        } else {
+            categoriesInput.value = data.categories;
+        }
+    }
+
+    const submitButton = form.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.textContent = 'Save Budget';
+}
+
+function setupGlobalKeyboardShortcuts() {
+    document.addEventListener("keydown", (e) => {
+        // Navigation shortcuts that work everywhere
+        if (e.key === "h") window.location = ROUTES.HOME;
+        else if (e.key === "t") window.location = ROUTES.TRANSACTIONS;
+        else if (e.key === "n") {
+            sessionStorage.removeItem('editingTransactionId');
+            window.location = ROUTES.TRANSACTIONS_ADD;
+        } else if (e.key === "b") window.location = ROUTES.BUDGETS;
+        else if (e.key === "g") {
+            sessionStorage.removeItem('editingBudgetId');
+            window.location = ROUTES.BUDGETS_ADD;
+        }
+    });
+}
+
+function setupCardListNavigation() {
+    const cards = document.getElementsByClassName("row-card");
+
+    if (cards.length === 0) {
+        console.warn('No cards found for navigation setup');
+        return;
+    }
+
+    // Initialize selection on first card
+    initializeSelection(cards);
+
+    // Set up keyboard navigation
+    document.addEventListener("keydown", (e) => {
+        if (formSelected && currentFieldIndex >= 0) return;
+        if (deletionMode) return;
+
+        const navKeys = ['ArrowUp', 'ArrowDown', 'Enter', 'Backspace', 'Delete'];
+        if (!navKeys.includes(e.key)) return;
+
+        e.preventDefault();
+
+        switch (e.key) {
+            case 'ArrowUp':
+                moveUp(cards);
+                break;
+            case 'ArrowDown':
+                moveDown(cards);
+                break;
+            case 'Enter':
+                editSelected(cards);
+                break;
+            case 'Backspace':
+            case 'Delete':
+                showDeletionPrompt(cards);
+                break;
+        }
+    });
+}
+
+function initializeFormSelection(form) {
     if (!form) return;
 
     formFields = Array.from(form.querySelectorAll('input, select, textarea, button[type="submit"]'));
@@ -24,6 +241,76 @@ function initializeFormSelection() {
         formFields[0].focus();
         formFields[0].select(); // Select text if it's a text input
     }
+}
+
+function initializeDeletionPrompt() {
+    document.addEventListener("keydown", (e) => {
+        if (!deletionMode) return;
+
+        e.preventDefault();
+
+        switch (e.key) {
+            case 'ArrowLeft':
+                deletionChoice = 0; // Select "Yes"
+                updateDeletionPrompt();
+                break;
+            case 'ArrowRight':
+                deletionChoice = 1; // Select "No"
+                updateDeletionPrompt();
+                break;
+            case 'Enter':
+                confirmDeletion();
+                break;
+            case 'Escape':
+                hideDeletionPrompt();
+                break;
+        }
+    });
+}
+
+function initTransactionFormSpecifics() {
+    const kindSelect = document.getElementById('kind');
+    const categoryCard = document.getElementById('category-card');
+    const categorySelectElement = document.getElementById('category-select');
+
+    if (!kindSelect || !categoryCard || !categorySelectElement) return;
+
+    const categorySelect = initCustomSelect(categorySelectElement);
+
+    categoryCard.classList.add('disabled');
+
+    kindSelect.addEventListener('change', function () {
+        const selectedType = this.value;
+
+        if (selectedType && CATEGORIES[selectedType]) {
+            categorySelect.setOptions(CATEGORIES[selectedType]);
+            categoryCard.classList.remove('disabled');
+        } else {
+            categorySelect.clear();
+            categoryCard.classList.add('disabled');
+        }
+    });
+}
+
+function setupAmountValidation(form) {
+    const amountInput = form.querySelector('input[name="amount"]');
+    if (!amountInput) return;
+
+    // Prevent negative numbers on input
+    amountInput.addEventListener('input', function () {
+        if (this.value < 0) {
+            this.value = '';
+        }
+    });
+
+    // Prevent negative numbers on paste
+    amountInput.addEventListener('paste', function () {
+        setTimeout(() => {
+            if (this.value < 0) {
+                this.value = '';
+            }
+        }, 0);
+    });
 }
 
 function saveTransaction(event) {
@@ -67,6 +354,27 @@ function saveTransaction(event) {
         });
 }
 
+async function loadTransactionForEditing(editingId, form) {
+    const response = await fetch(`${API_ENDPOINTS.transactions}/${editingId}`);
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch transaction');
+    }
+
+    const data = await response.json();
+
+    document.getElementById('amount').value = parseFloat(data.amount.replace('$', ''));
+    document.getElementById('kind').value = data.kind;
+    document.getElementById('category').value = data.category;
+    document.getElementById('notes').value = data.notes || '';
+
+    form.querySelector('button[type="submit"]').textContent = 'Save Transaction';
+
+    const kindSelect = document.getElementById('kind');
+    if (kindSelect) {
+        kindSelect.dispatchEvent(new Event('change'));
+    }
+}
 
 function saveBudget(event) {
     event.preventDefault();
@@ -110,7 +418,7 @@ function saveBudget(event) {
 
 function setupEventDelegation() {
     const container = document.querySelector(".list-container");
-
+    const cards = document.getElementsByClassName("row-card");
     container.addEventListener('click', (e) => {
         const card = e.target.closest('.row-card');
         if (!card) return;
@@ -120,122 +428,28 @@ function setupEventDelegation() {
         if (e.target.closest('button.edit')) {
             e.stopPropagation();
             selectedIndex = cardIndex;
-            updateSelection();
-            editSelected();
+            updateSelection(cards);
+            editSelected(cards);
             return;
         }
 
         if (e.target.closest('button.delete')) {
             e.stopPropagation();
             selectedIndex = cardIndex;
-            updateSelection();
-            showDeletionPrompt();
+            updateSelection(cards);
+            showDeletionPrompt(cards);
             return;
         }
 
         if (!e.target.closest('button')) {
             selectedIndex = cardIndex;
-            updateSelection();
+            updateSelection(cards);
         }
     });
 }
 
-document.addEventListener("keydown", (e) => {
-    if (formSelected && currentFieldIndex >= 0) {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            navigateFormFields(e.shiftKey ? -1 : 1);
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            blurCurrentField();
-        }
-        return;
-    }
-
-    const navKeys = ['ArrowUp', 'ArrowDown', 'k', 'j', 'Enter', 'Backspace', 'Delete', 'Escape', 'ArrowLeft', 'ArrowRight'];
-    if (navKeys.includes(e.key)) {
-        e.preventDefault();
-    }
-
-    if (deletionMode) {
-        switch (e.key) {
-            case 'ArrowLeft':
-                deletionChoice = 0;
-                updateDeletionPrompt();
-                break;
-            case 'ArrowRight':
-                deletionChoice = 1;
-                updateDeletionPrompt();
-                break;
-            case 'Enter':
-                confirmDeletion();
-                break;
-            case 'Escape':
-                hideDeletionPrompt();
-                break;
-        }
-    } else {
-        switch (e.key) {
-            case 'ArrowUp':
-            case 'k':
-                moveUp();
-                break;
-            case 'ArrowDown':
-            case 'j':
-                moveDown();
-                break;
-            case 'Enter':
-                editSelected();
-                break;
-            case 'Backspace':
-            case 'Delete':
-                showDeletionPrompt();
-                break;
-        }
-    }
-
-    if (e.key === "h") window.location = "/";
-    else if (e.key === "t") window.location = "/transactions";
-    else if (e.key === "n") {
-        sessionStorage.removeItem('editingTransactionId');
-        window.location = "/transactions/add";
-    } else if (e.key === "b") window.location = "/budgets";
-    else if (e.key === "g") window.location = "/budgets/add";
-    else if (e.key === "Escape") {
-        if (window.location.pathname === "/transactions/add") {
-            window.location = "/transactions"
-        } else if (window.location.pathname === "/budgets/add") {
-            window.location = "/budgets"
-        }
-    }
-});
-
-function navigateFormFields(direction) {
-    if (formFields.length === 0) return;
-
-    currentFieldIndex += direction;
-
-    if (currentFieldIndex < 0) {
-        currentFieldIndex = formFields.length - 1;
-    } else if (currentFieldIndex >= formFields.length) {
-        currentFieldIndex = 0;
-    }
-
-    formFields[currentFieldIndex].focus();
-    if (formFields[currentFieldIndex].select) {
-        formFields[currentFieldIndex].select();
-    }
-}
-
-function blurCurrentField() {
-    if (currentFieldIndex >= 0 && formFields[currentFieldIndex]) {
-        formFields[currentFieldIndex].blur();
-        currentFieldIndex = -1;
-    }
-}
-
-function setupFormClickHandlers() {
-    const form = document.querySelector(".transaction-form") || document.querySelector(".budget-form");
+function setupFormClickHandlers(form) {
+    // const form = document.querySelector(".transaction-form") || document.querySelector(".budget-form");
     if (!form) return;
 
     formFields.forEach((field, index) => {
@@ -254,13 +468,13 @@ function setupFormClickHandlers() {
     });
 }
 
-function initializeSelection() {
+function initializeSelection(cards) {
     if (cards.length > 0) {
         cards[0].classList.add('selected');
     }
 }
 
-function updateSelection() {
+function updateSelection(cards) {
     for (let card of cards) {
         card.classList.remove('selected');
     }
@@ -270,21 +484,21 @@ function updateSelection() {
     }
 }
 
-function moveUp() {
+function moveUp(cards) {
     if (selectedIndex > 0) {
         selectedIndex--;
-        updateSelection();
+        updateSelection(cards);
     }
 }
 
-function moveDown() {
+function moveDown(cards) {
     if (selectedIndex < cards.length - 1) {
         selectedIndex++;
         updateSelection(cards);
     }
 }
 
-function editSelected() {
+function editSelected(cards) {
     if (cards[selectedIndex]) {
         const card = cards[selectedIndex];
         if (card.classList.contains("empty-state")) {
@@ -315,7 +529,7 @@ function editSelected() {
 
         fetch(url)
             .then(response => response.json())
-            .then(data => {
+            .then(() => {
                 sessionStorage.setItem(storageKey, itemId);
                 window.location.href = destination;
             })
@@ -326,7 +540,7 @@ function editSelected() {
     }
 }
 
-function showDeletionPrompt() {
+function showDeletionPrompt(cards) {
     if (!cards[selectedIndex]) return;
 
     deletionMode = true;
@@ -383,14 +597,15 @@ function hideDeletionPrompt() {
 
 function confirmDeletion() {
     if (deletionChoice === 0) { // Yes selected
+        const cards = document.getElementsByClassName("row-card");
         if (cards[selectedIndex]) {
             const itemId = cards[selectedIndex].querySelector("button.delete").dataset.id;
             const cardToRemove = cards[selectedIndex]
             let apiEndpoint;
-            if (window.location.pathname === "/transactions") {
-                apiEndpoint = `/api/transactions/${itemId}`;
-            } else if (window.location.pathname === "/budgets") {
-                apiEndpoint = `/api/budgets/${itemId}`;
+            if (window.location.pathname === ROUTES.TRANSACTIONS) {
+                apiEndpoint = `${API_ENDPOINTS.transactions}/${itemId}`;
+            } else if (window.location.pathname === ROUTES.BUDGETS) {
+                apiEndpoint = `${API_ENDPOINTS.budgets}/${itemId}`;
             } else {
                 console.error('Unknown page for deletion');
                 hideDeletionPrompt();
@@ -404,11 +619,12 @@ function confirmDeletion() {
                             cardToRemove.remove();
                             if (cards.length === 0) {
                                 selectedIndex = 0;
-                                window.location = "/transactions";
+                                // window.location = "/transactions";
+                                window.location.reload()
                             } else if (selectedIndex >= cards.length) {
                                 selectedIndex = cards.length - 1;
                             }
-                            updateSelection();
+                            updateSelection(cards);
                             hideDeletionPrompt();
                         } else {
                             console.error('Failed to delete item');
@@ -466,15 +682,17 @@ async function loadTransactions() {
     </div>
     `;
     }
-    initializeSelection();
+    const cards = document.getElementsByClassName("row-card");
+    initializeSelection(cards);
 }
 
 async function loadBudgets() {
-    const response = await fetch("/api/budgets");
-    const data = await response.json();
+    try {
+        const response = await fetch(API_ENDPOINTS.budgets);
+        const data = await response.json();
 
-    const container = document.querySelector(".list-container");
-    container.innerHTML = data.budgets.map(b => `
+        const container = document.querySelector(".list-container");
+        container.innerHTML = data.budgets.map(b => `
     <div class="row-card">
         <div class="card-main">
             <div class="card-name">${b.name}</div>
@@ -501,99 +719,105 @@ async function loadBudgets() {
         </div>
     </div>
 `).join("");
-    initializeSelection();
+        const cards = document.getElementsByClassName("row-card");
+        initializeSelection(cards);
+    } catch (error) {
+        console.error('Error loading budgets:', error);
+        alert('Failed to load budgets');
+    }
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    const navLinks = document.querySelectorAll('nav a[href="/transactions/add"]');
-    navLinks.forEach(link => {
-        link.addEventListener('click', function () {
-            sessionStorage.removeItem('editingTransactionId');
-        });
+
+function initCustomSelect(selectElement) {
+    const selected = selectElement.querySelector('.select-selected');
+    const items = selectElement.querySelector('.select-items');
+    const hiddenInput = selectElement.parentElement.querySelector('input[type="hidden"]');
+    let focusedIndex = -1;
+
+    // Toggle dropdown
+    selected.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const options = items.querySelectorAll('div');
+        if (options.length === 0) return;
+
+        closeAllSelect(selectElement);
+        items.classList.toggle('select-hide');
+        focusedIndex = -1;
     });
-    const budgetLinks = document.querySelectorAll('nav a[href="/budgets/add"]');
-    budgetLinks.forEach(link => {
-        link.addEventListener('click', function () {
-            sessionStorage.removeItem('editingBudgetId');
+
+    function attachOptionListeners() {
+        items.querySelectorAll('div').forEach(option => {
+            option.onclick = (e) => {
+                e.stopPropagation();
+                selected.textContent = option.textContent;
+                hiddenInput.value = option.getAttribute('data-value');
+                items.querySelectorAll('div').forEach(o => o.classList.remove('same-as-selected'));
+                option.classList.add('same-as-selected');
+                items.classList.add('select-hide');
+            };
         });
+    }
+
+    attachOptionListeners();
+
+    selectElement.addEventListener('keydown', (e) => {
+        const options = items.querySelectorAll('div');
+        if (options.length === 0) return;
+
+        if (items.classList.contains('select-hide')) {
+            if (['Enter', ' ', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+                items.classList.remove('select-hide');
+                focusedIndex = 0;
+                updateFocus();
+            }
+        } else {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                focusedIndex = Math.min(focusedIndex + 1, options.length - 1);
+                updateFocus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                focusedIndex = Math.max(focusedIndex - 1, 0);
+                updateFocus();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (focusedIndex >= 0) options[focusedIndex].click();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                items.classList.add('select-hide');
+            }
+        }
     });
-});
 
-if (window.location.pathname === "/transactions") {
-    loadTransactions();
-    setupEventDelegation();
-} else if (window.location.pathname === "/budgets") {
-    loadBudgets();
-    setupEventDelegation();
-} else if (window.location.pathname === "/transactions/add") {
-    const form = document.querySelector(".transaction-form");
-    if (form) {
-        const editingId = sessionStorage.getItem('editingTransactionId');
-        const amountInput = form.querySelector('input[name="amount"]');
-        if (amountInput) {
-            amountInput.addEventListener('input', function (e) {
-                if (this.value < 0) {
-                    this.value = '';
-                }
-            });
-            amountInput.addEventListener('paste', function (e) {
-                setTimeout(() => {
-                    if (this.value < 0) {
-                        this.value = '';
-                    }
-                }, 0);
-            });
+    function updateFocus() {
+        const options = items.querySelectorAll('div');
+        options.forEach((opt, idx) => {
+            opt.classList.toggle('keyboard-focused', idx === focusedIndex);
+        });
+        if (focusedIndex >= 0) {
+            options[focusedIndex].scrollIntoView({block: 'nearest'});
         }
-        if (editingId) {
-            fetch(`/api/transactions/${editingId}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('amount').value = parseFloat(data.amount.replace('$', ''));
-                    document.getElementById('kind').value = data.kind;
-                    document.getElementById('category').value = data.category;
-                    document.getElementById('notes').value = data.notes || '';
-
-                    form.querySelector('button[type="submit"]').textContent = 'Save Transaction';
-                    initializeFormSelection();
-                    setupFormClickHandlers();
-                })
-                .catch(error => {
-                    console.error('Error loading transaction:', error);
-                    sessionStorage.removeItem('editingTransactionId');
-                });
-        } else {
-            initializeFormSelection();
-            setupFormClickHandlers();
-        }
-        form.addEventListener('submit', saveTransaction);
     }
-} else if (window.location.pathname === "/budgets/add") {
-    const form = document.querySelector(".budget-form");
-    if (form) {
-        const editingId = sessionStorage.getItem('editingBudgetId');
 
-        if (editingId) {
-            fetch(`/api/budgets/${editingId}`)
-                .then(response => response.json())
-                .then(data => {
-                    // Populate form fields with budget data
-                    document.getElementById('name').value = data.name;
-                    document.getElementById('limit').value = parseFloat(data.limit.replace('$', ''));
-                    // Handle categories population based on your form structure
-
-                    form.querySelector('button[type="submit"]').textContent = 'Save Budget';
-                    initializeFormSelection();
-                    setupFormClickHandlers();
-                })
-                .catch(error => {
-                    console.error('Error loading budget:', error);
-                    sessionStorage.removeItem('editingBudgetId');
-                });
-        } else {
-            initializeFormSelection();
-            setupFormClickHandlers();
+    return {
+        setOptions: (optionsArray) => {
+            items.innerHTML = optionsArray.map(cat =>
+                `<div data-value="${cat.value}">${cat.label}</div>`
+            ).join('');
+            attachOptionListeners();
+        },
+        clear: () => {
+            items.innerHTML = '';
+            selected.textContent = 'Select type first...';
+            hiddenInput.value = '';
         }
+    };
+}
 
-        form.addEventListener('submit', saveBudget);
-    }
+function closeAllSelect(exceptElement) {
+    document.querySelectorAll('.select-items').forEach(items => {
+        if (exceptElement && items.parentElement === exceptElement) return;
+        items.classList.add('select-hide');
+    });
 }

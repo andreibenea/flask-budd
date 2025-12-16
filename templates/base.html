@@ -11,7 +11,8 @@
 <nav>
     <a href="/" class="{{ 'active' if request.path == '/' else '' }}"><kbd>[H]</kbd>ome</a>
     <a href="/transactions" class="{{ 'active' if request.path == '/transactions' else '' }}"><kbd>[T]</kbd>ransactions</a>
-    <a href="/transactions/add" class="{{ 'active' if request.path == '/transactions/add' else '' }}"><kbd>[N]</kbd>ew Transaction</a>
+    <a href="/transactions/add" class="{{ 'active' if request.path == '/transactions/add' else '' }}"><kbd>[N]</kbd>ew
+        Transaction</a>
     <a href="/budgets" class="{{ 'active' if request.path == '/budgets' else '' }}"><kbd>[B]</kbd>udgets</a>
     <a href="/budgets/add" class="{{ 'active' if request.path == '/budgets/add' else '' }}"><kbd>[G]</kbd>enerate Budget</a>
 </nav>
@@ -21,6 +22,6 @@
         Just the base template.
     {% endblock %}
 </div>
-<script src="/static/js/app.js"></script>
+<script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

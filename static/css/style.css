@@ -348,6 +348,18 @@ form * {
     max-height: fit-content;
 }
 
+.form-card.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    position: relative;
+}
+
+
+select:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .form-card label {
     color: var(--accent-secondary);
     font-weight: bold;
@@ -404,7 +416,6 @@ form button:hover {
     gap: 0 2rem; /* vertical gap, horizontal gap */
 }
 
-
 .checkbox-item {
     display: flex;
     align-items: center;
@@ -425,14 +436,79 @@ form button:hover {
     flex-shrink: 0;
 }
 
-/*#categories {*/
-/*    width: 100%;*/
-/*}*/
-
 .checkbox-item span {
     padding: 0.25rem;
     user-select: none;
     width: 140px;
+}
+
+/* Custom Select Dropdown */
+.custom-select {
+    position: relative;
+    padding: 0;
+    width: 100%;
+}
+
+.select-selected {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 0.75rem;
+    border-radius: 3px;
+    cursor: pointer;
+    user-select: none;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    min-width: 160px;
+}
+
+.select-items {
+    position: absolute;
+    background: var(--bg-dark);
+    border: 1px solid var(--accent-primary);
+    border-top: none;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 99;
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: 0 0 3px 3px;
+    scrollbar-width: none;
+}
+
+.select-hide {
+    display: none;
+}
+
+.select-items div {
+    padding: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border);
+}
+
+.select-items div:last-child {
+    border-bottom: none;
+}
+
+.select-items div:hover,
+.select-items div.keyboard-focused {
+    background: var(--bg-light);
+}
+
+.select-items div.same-as-selected {
+    background: var(--accent-primary);
+    color: var(--text-main);
+}
+
+/* Focus state for custom select */
+.custom-select:focus-within .select-selected {
+    outline: 1px dashed var(--accent-primary);
+    outline-offset: 0;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.3);
+    color: var(--accent-secondary);
 }
 
 /* Chrome, Safari, Edge, Opera */
@@ -447,7 +523,6 @@ input[type="number"] {
     -moz-appearance: textfield;
 }
 
-
 input[type="text"],
 input[type="number"],
 select,
@@ -455,7 +530,6 @@ textarea {
     height: 3rem;
     min-width: 160px;
 }
-
 
 body:has(input:focus) nav kbd,
 body:has(button:focus) nav kbd,
@@ -477,4 +551,25 @@ body:has(select:focus) nav kbd {
 /*    overflow-y: scroll;*/
 /*    scrollbar-width: none;*/
 /*    -ms-overflow-style: none;*/
+/*}*/
+
+
+/*striped disabled look*/
+
+/*.form-card.disabled::after {*/
+/*    content: '';*/
+/*    position: absolute;*/
+/*    top: 0;*/
+/*    left: 0;*/
+/*    right: 0;*/
+/*    bottom: 0;*/
+/*    background: repeating-linear-gradient(*/
+/*        45deg,*/
+/*        transparent,*/
+/*        transparent 10px,*/
+/*        rgba(255, 106, 0, 0.05) 10px,*/
+/*        rgba(255, 106, 0, 0.05) 20px*/
+/*    );*/
+/*    pointer-events: none;*/
+/*    border-radius: 4px;*/
 /*}*/
