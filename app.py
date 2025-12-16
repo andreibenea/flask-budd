@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify
 from res.models import Transaction, Budget, Category, db
 
 app = Flask(__name__)
@@ -119,6 +119,8 @@ def api_transaction_details(transaction_id):
 def api_budgets():
     """Get all budgets"""
     budgets = Budget.query.all()
+    if len(budgets) == 0:
+        return jsonify({"error": "No budgets found"})
     sorted_budgets = sorted(budgets, key=lambda budget: budget.timestamp, reverse=True)
     return {
         'budgets': [budget.to_dict() for budget in sorted_budgets]

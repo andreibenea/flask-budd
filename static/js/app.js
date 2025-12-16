@@ -77,6 +77,7 @@ async function initTransactionFormPage() {
     // Set up form field navigation (Tab, Escape)
     initializeFormSelection(form);
     setupFormClickHandlers(form);
+    setupFormKeyboardHandlers();
     // Set up transaction-specific form logic
     initTransactionFormSpecifics();
     // Handle amount input validation (no negative numbers)
@@ -111,6 +112,7 @@ async function initBudgetFormPage() {
 
     initializeFormSelection(form);
     setupFormClickHandlers(form);
+    setupFormKeyboardHandlers();
     initBudgetFormSpecifics();
     setupAmountValidation(form);
 
@@ -125,21 +127,10 @@ async function initBudgetFormPage() {
         }
     }
 
-    // 5. Set up form submission handler
     form.addEventListener('submit', saveBudget);
 }
 
 function initBudgetFormSpecifics() {
-    // Budget form is currently simpler than transaction form
-    // No dynamic dropdowns or conditional fields
-
-    // If you add features like:
-    // - Category multi-select
-    // - Budget type selection (monthly, yearly, etc.)
-    // - Recurring budget options
-    // Then add that logic here
-
-    // For now, this can be empty or just a placeholder
     console.log('Budget form initialized');
 }
 
@@ -175,16 +166,24 @@ async function loadBudgetForEditing(editingId, form) {
 
 function setupGlobalKeyboardShortcuts() {
     document.addEventListener("keydown", (e) => {
-        // Navigation shortcuts that work everywhere
+        if (formSelected && currentFieldIndex >= 0) return;
         if (e.key === "h") window.location = ROUTES.HOME;
-        else if (e.key === "t") window.location = ROUTES.TRANSACTIONS;
-        else if (e.key === "n") {
+        else if (e.key === "t") {
+            window.location = ROUTES.TRANSACTIONS;
+        } else if (e.key === "n") {
             sessionStorage.removeItem('editingTransactionId');
             window.location = ROUTES.TRANSACTIONS_ADD;
-        } else if (e.key === "b") window.location = ROUTES.BUDGETS;
-        else if (e.key === "g") {
+        } else if (e.key === "b") {
+            window.location = ROUTES.BUDGETS;
+        } else if (e.key === "g") {
             sessionStorage.removeItem('editingBudgetId');
             window.location = ROUTES.BUDGETS_ADD;
+        } else if (e.key === "Escape") {
+            if (window.location.pathname === ROUTES.TRANSACTIONS_ADD) {
+                window.location = ROUTES.TRANSACTIONS;
+            } else if (window.location.pathname === ROUTES.BUDGETS_ADD) {
+                window.location = ROUTES.BUDGETS;
+            }
         }
     });
 }
@@ -449,7 +448,6 @@ function setupEventDelegation() {
 }
 
 function setupFormClickHandlers(form) {
-    // const form = document.querySelector(".transaction-form") || document.querySelector(".budget-form");
     if (!form) return;
 
     formFields.forEach((field, index) => {
@@ -466,6 +464,46 @@ function setupFormClickHandlers(form) {
             }, 10);
         });
     });
+}
+
+function setupFormKeyboardHandlers() {
+    document.addEventListener("keydown", (e) => {
+        // Only handle when a form field is focused
+        if (!formSelected || currentFieldIndex < 0) return;
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            navigateFormFields(e.shiftKey ? -1 : 1);
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            blurCurrentField();
+        }
+    });
+}
+
+function navigateFormFields(direction) {
+    if (formFields.length === 0) return;
+
+    currentFieldIndex += direction;
+
+    if (currentFieldIndex < 0) {
+        currentFieldIndex = formFields.length - 1;
+    } else if (currentFieldIndex >= formFields.length) {
+        currentFieldIndex = 0;
+    }
+
+    formFields[currentFieldIndex].focus();
+    if (formFields[currentFieldIndex].select) {
+        formFields[currentFieldIndex].select();
+    }
+}
+
+function blurCurrentField() {
+    if (currentFieldIndex >= 0 && formFields[currentFieldIndex]) {
+        formFields[currentFieldIndex].blur();
+        currentFieldIndex = -1;
+        formSelected = false;  // Important: Clear the flag
+    }
 }
 
 function initializeSelection(cards) {
@@ -502,10 +540,10 @@ function editSelected(cards) {
     if (cards[selectedIndex]) {
         const card = cards[selectedIndex];
         if (card.classList.contains("empty-state")) {
-            if (window.location.pathname === "/transactions") {
-                window.location = "/transactions/add";
-            } else if (window.location.pathname === "/budgets") {
-                window.location = "/budgets/add";
+            if (window.location.pathname === ROUTES.TRANSACTIONS) {
+                window.location = ROUTES.TRANSACTIONS_ADD;
+            } else if (window.location.pathname === ROUTES.BUDGETS) {
+                window.location = ROUTES.BUDGETS_ADD;
             }
             return;
         }
@@ -643,12 +681,15 @@ function confirmDeletion() {
 }
 
 async function loadTransactions() {
-    const response = await fetch("/api/transactions");
-    const data = await response.json();
+    try {
 
-    const container = document.querySelector(".list-container");
-    if ("transactions" in data) {
-        container.innerHTML = data.transactions.map(t => `
+
+        const response = await fetch("/api/transactions");
+        const data = await response.json();
+
+        const container = document.querySelector(".list-container");
+        if ("transactions" in data) {
+            container.innerHTML = data.transactions.map(t => `
     <div class="row-card">
         <div class="card-main">
             <div class="card-category">${t.category}</div>
@@ -673,17 +714,21 @@ async function loadTransactions() {
         </div>
     </div>
 `).join("");
-    } else {
-        container.innerHTML = `
+        } else {
+            container.innerHTML = `
     <div class="row-card empty-state">
         <div class="card-main">
             <div class="card-category">No transactions found! Press Enter or Return to add one!</div>
         </div>
     </div>
     `;
+        }
+        const cards = document.getElementsByClassName("row-card");
+        initializeSelection(cards);
+    } catch (error) {
+        console.error('Error loading transactions:', error);
+        alert('Failed to load transactions');
     }
-    const cards = document.getElementsByClassName("row-card");
-    initializeSelection(cards);
 }
 
 async function loadBudgets() {
@@ -692,7 +737,8 @@ async function loadBudgets() {
         const data = await response.json();
 
         const container = document.querySelector(".list-container");
-        container.innerHTML = data.budgets.map(b => `
+        if ("budgets" in data) {
+            container.innerHTML = data.budgets.map(b => `
     <div class="row-card">
         <div class="card-main">
             <div class="card-name">${b.name}</div>
@@ -719,6 +765,15 @@ async function loadBudgets() {
         </div>
     </div>
 `).join("");
+        } else {
+            container.innerHTML = `
+    <div class="row-card empty-state">
+        <div class="card-main">
+            <div class="card-category">No budgets found! Press Enter or Return to add one!</div>
+        </div>
+    </div>
+    `;
+        }
         const cards = document.getElementsByClassName("row-card");
         initializeSelection(cards);
     } catch (error) {
