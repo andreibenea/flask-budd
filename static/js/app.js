@@ -67,6 +67,47 @@ function saveTransaction(event) {
         });
 }
 
+
+function saveBudget(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const editingId = sessionStorage.getItem('editingBudgetId');
+
+    const budgetData = {
+        name: formData.get('name'),
+        limit: formData.get('amount'),
+        categories: formData.get('categories'),
+    };
+
+    const url = editingId
+        ? `/api/budgets/${editingId}`
+        : '/api/budgets/new';
+    const method = editingId ? 'PUT' : 'POST';
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(budgetData)
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to create budget');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Budget created:', data);
+            window.location.href = '/budgets';
+        })
+        .catch(error => {
+            console.error('Error creating budget:', error);
+            alert('Failed to create budget. Please try again.');
+        });
+}
+
 function setupEventDelegation() {
     const container = document.querySelector(".list-container");
 
@@ -225,7 +266,7 @@ function updateSelection() {
     }
     if (cards[selectedIndex]) {
         cards[selectedIndex].classList.add('selected');
-        cards[selectedIndex].scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        cards[selectedIndex].scrollIntoView({behavior: 'smooth', block: 'center'});
     }
 }
 
@@ -247,20 +288,40 @@ function editSelected() {
     if (cards[selectedIndex]) {
         const card = cards[selectedIndex];
         if (card.classList.contains("empty-state")) {
-            window.location = "/transactions/add";
+            if (window.location.pathname === "/transactions") {
+                window.location = "/transactions/add";
+            } else if (window.location.pathname === "/budgets") {
+                window.location = "/budgets/add";
+            }
             return;
         }
-        const transactionId = card.querySelector('button.edit').dataset.id;
 
-        fetch(`/api/transactions/${transactionId}`)
+        const editButton = card.querySelector('button.edit');
+        const itemId = editButton.dataset.id;
+
+        let url, destination, storageKey;
+
+        if (window.location.pathname === "/transactions") {
+            url = `/api/transactions/${itemId}`;
+            destination = "/transactions/add";
+            storageKey = 'editingTransactionId';
+        } else if (window.location.pathname === "/budgets") {
+            url = `/api/budgets/${itemId}`;
+            destination = "/budgets/add";
+            storageKey = 'editingBudgetId';
+        } else {
+            return;
+        }
+
+        fetch(url)
             .then(response => response.json())
             .then(data => {
-                sessionStorage.setItem('editingTransactionId', transactionId);
-                window.location.href = '/transactions/add';
+                sessionStorage.setItem(storageKey, itemId);
+                window.location.href = destination;
             })
             .catch(error => {
-                console.error('Error loading transaction:', error);
-                alert('Failed to load transaction for editing');
+                console.error('Error loading item:', error);
+                alert('Failed to load item for editing');
             });
     }
 }
@@ -450,6 +511,12 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionStorage.removeItem('editingTransactionId');
         });
     });
+    const budgetLinks = document.querySelectorAll('nav a[href="/budgets/add"]');
+    budgetLinks.forEach(link => {
+        link.addEventListener('click', function () {
+            sessionStorage.removeItem('editingBudgetId');
+        });
+    });
 });
 
 if (window.location.pathname === "/transactions") {
@@ -503,7 +570,30 @@ if (window.location.pathname === "/transactions") {
 } else if (window.location.pathname === "/budgets/add") {
     const form = document.querySelector(".budget-form");
     if (form) {
-        initializeFormSelection();
-        setupFormClickHandlers();
+        const editingId = sessionStorage.getItem('editingBudgetId');
+
+        if (editingId) {
+            fetch(`/api/budgets/${editingId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Populate form fields with budget data
+                    document.getElementById('name').value = data.name;
+                    document.getElementById('limit').value = parseFloat(data.limit.replace('$', ''));
+                    // Handle categories population based on your form structure
+
+                    form.querySelector('button[type="submit"]').textContent = 'Save Budget';
+                    initializeFormSelection();
+                    setupFormClickHandlers();
+                })
+                .catch(error => {
+                    console.error('Error loading budget:', error);
+                    sessionStorage.removeItem('editingBudgetId');
+                });
+        } else {
+            initializeFormSelection();
+            setupFormClickHandlers();
+        }
+
+        form.addEventListener('submit', saveBudget);
     }
 }

@@ -8,7 +8,7 @@ db.init_app(app)
 
 
 # ===================================================================
-# RENDER TEMPLATES
+# VIEW ROUTES
 # ===================================================================
 @app.route("/")
 def homepage():
@@ -17,7 +17,7 @@ def homepage():
 
 @app.route("/transactions")
 def transactions_page():
-    return render_template("transactions.html")
+    return render_template("transactions.html", transactions=api_transactions)
 
 
 @app.route("/transactions/add")
@@ -72,7 +72,7 @@ def api_transactions():
 
 
 @app.route("/api/transactions/new", methods=["POST"])
-def api_transactions_new():
+def api_transaction_new():
     """Create a new transaction"""
     data = request.get_json()
     amount = data.get("amount")
@@ -119,28 +119,33 @@ def api_transaction_details(transaction_id):
 def api_budgets():
     """Get all budgets"""
     budgets = Budget.query.all()
+    sorted_budgets = sorted(budgets, key=lambda budget: budget.timestamp, reverse=True)
     return {
-        'budgets': [budget.to_dict() for budget in budgets]
+        'budgets': [budget.to_dict() for budget in sorted_budgets]
     }
 
 
 @app.route("/api/budgets/new", methods=["POST"])
 def api_budget_new():
     """Create a new budget"""
-    name = request.form.get("name")
-    limit = request.form.get("limit")
-    categories_string = request.form.get("categories")
+    data = request.get_json()
+    name = data.get("name")
+    limit = data.get("limit")
+    categories = []
+    for cat in data.get("categories"):
+        new_cat = Category()
+        new_cat.name = cat["name"]
+        categories.append(new_cat)
     new_budget = Budget()
     new_budget.name = name
     new_budget.limit = limit
-    for cat_name in categories_string.split(","):
-        category = Category()
-        category.name = cat_name.strip()
-        new_budget.categories.append(category)
+    new_budget.categories = categories
     db.session.add(new_budget)
     db.session.commit()
-    budgets = Budget.query.all()
-    return {'budgets': [b.to_dict() for b in budgets]}
+    return jsonify({
+        'success': True,
+        'budget': new_budget.to_dict()
+    }), 201
 
 
 @app.route("/api/budgets/<int:budget_id>", methods=["GET", "PUT", "DELETE"])
@@ -157,7 +162,7 @@ def api_budget_details(budget_id):
         return api_budgets()
     elif request.method == 'PUT':
         budget.name = request.form.get("name")
-        budget.limit = request.form.get("limit")
+        budget.limit = request.form.get("amount")
         budget.categories = []
         for cat in request.form.get("categories").split(","):
             category = Category()
@@ -167,23 +172,6 @@ def api_budget_details(budget_id):
         db.session.add(budget)
         db.session.commit()
         return budget.to_dict()
-
-
-# def sort_stuff(stuff):
-#     if len(stuff) == 0:
-#         return stuff
-#     sorted_stuff = []
-#     mid = len(sorted_stuff) / 2
-#     left, right = sorted_stuff[:mid], sorted_stuff[mid:]
-#     i = 0
-#     j = 0
-#     for i in range(len(left)):
-#         if left[i].timestamp < right[j].timestamp:
-#             sorted_stuff.append(left[i])
-#             i += 1
-#         else:
-#             sorted_stuff.append(right[j])
-#             j += 1
 
 
 if __name__ == "__main__":

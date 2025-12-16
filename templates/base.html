@@ -9,11 +9,11 @@
 </head>
 <body>
 <nav>
-    <a href="/"><kbd>[H]</kbd>ome</a>
-    <a href="/transactions"><kbd>[T]</kbd>ransactions</a>
-    <a href="/transactions/add"><kbd>[N]</kbd>ew Transaction</a>
-    <a href="/budgets"><kbd>[B]</kbd>udgets</a>
-    <a href="/budgets/add"><kbd>[G]</kbd>enerate Budget</a>
+    <a href="/" class="{{ 'active' if request.path == '/' else '' }}"><kbd>[H]</kbd>ome</a>
+    <a href="/transactions" class="{{ 'active' if request.path == '/transactions' else '' }}"><kbd>[T]</kbd>ransactions</a>
+    <a href="/transactions/add" class="{{ 'active' if request.path == '/transactions/add' else '' }}"><kbd>[N]</kbd>ew Transaction</a>
+    <a href="/budgets" class="{{ 'active' if request.path == '/budgets' else '' }}"><kbd>[B]</kbd>udgets</a>
+    <a href="/budgets/add" class="{{ 'active' if request.path == '/budgets/add' else '' }}"><kbd>[G]</kbd>enerate Budget</a>
 </nav>
 
 <div class="container">

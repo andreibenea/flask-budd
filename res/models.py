@@ -37,7 +37,7 @@ class Category(db.Model):
     def to_dict(self):
         return {
             "id": self.id,
-            "name": self.name.capitalize(),
+            "name": self.name.title(),
             "budget_id": self.budget_id,
         }
 

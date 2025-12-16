@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="list-container"></div>
+    {% if transactions %}
+        <div class="list-container"></div>
+    {% else %}
+        <div class="empty-state">
+            <p>There are no transactions to display!</p>
+            <p>Press <kbd>[N]</kbd> to add your first transaction!</p>
+        </div>
+    {% endif %}
 {% endblock %}
