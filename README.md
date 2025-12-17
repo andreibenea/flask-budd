@@ -261,6 +261,6 @@ Because everyone needs a buddy to help manage their finances. Budd keeps track o
 
 ---
 
-**Made with ☕ and ⌨️ by [Your Name]**
+**Made with ☕ and ⌨️ by me :)**
 
 [⬆ back to top](#-budd---personal-finance-tracker)
