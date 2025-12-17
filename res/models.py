@@ -19,7 +19,7 @@ class Transaction(db.Model):
         return {
             "id": self.id,
             "amount": f"${self.amount:.2f}",
-            "category": self.category.capitalize(),
+            "category": self.category.title(),
             "kind": self.kind,
             "notes": self.notes,
             "timestamp": self.timestamp.isoformat()[:19].replace("T", " ") if self.timestamp else None

@@ -97,7 +97,7 @@ def api_transaction_details(transaction_id):
     """Get, update or delete a transaction"""
     transaction = Transaction.query.get(transaction_id)
     if transaction is None:
-        return 404
+        return jsonify({"error": "Transaction not found"}), 404
     if request.method == 'GET':
         return transaction.to_dict()
     elif request.method == 'DELETE':
@@ -133,11 +133,17 @@ def api_budget_new():
     data = request.get_json()
     name = data.get("name")
     limit = data.get("limit")
+    categories_data = data.get("categories", [])
+
+    if not categories_data or len(categories_data) == 0:
+        return jsonify({"error": "At least one category is required"}), 400
+
     categories = []
-    for cat in data.get("categories"):
+    for cat in categories_data:
         new_cat = Category()
         new_cat.name = cat["name"]
         categories.append(new_cat)
+
     new_budget = Budget()
     new_budget.name = name
     new_budget.limit = limit
@@ -155,7 +161,7 @@ def api_budget_details(budget_id):
     """Get, update or delete a budget"""
     budget = Budget.query.get(budget_id)
     if budget is None:
-        return 404
+        return jsonify({"error": "Budget not found"}), 404
     if request.method == 'GET':
         return budget.to_dict()
     elif request.method == 'DELETE':
@@ -163,12 +169,20 @@ def api_budget_details(budget_id):
         db.session.commit()
         return api_budgets()
     elif request.method == 'PUT':
-        budget.name = request.form.get("name")
-        budget.limit = request.form.get("amount")
+        data = request.get_json()
+        budget.name = data.get("name")
+        budget.limit = data.get("limit")
+        categories_data = data.get("categories", [])
+
+        if not categories_data or len(categories_data) == 0:
+            return jsonify({"error": "At least one category is required"}), 400
+
+        Category.query.filter_by(budget_id=budget.id).delete()
+
         budget.categories = []
-        for cat in request.form.get("categories").split(","):
+        for cat in categories_data:
             category = Category()
-            category.name = cat.strip()
+            category.name = cat["name"]
             budget.categories.append(category)
 
         db.session.add(budget)

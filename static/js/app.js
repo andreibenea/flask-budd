@@ -16,6 +16,9 @@ let formFields = [];
 document.addEventListener('DOMContentLoaded', async function () {
     const path = window.location.pathname;
 
+    // Init rules on link navigation
+    setupNavLinkHandlers();
+
     // Initialize global navigation shortcuts
     setupGlobalKeyboardShortcuts();
 
@@ -69,17 +72,17 @@ async function initTransactionsListPage() {
 
 
 async function initTransactionFormPage() {
-    const form = document.querySelector(".transaction-form") || document.querySelector(".budget-form");
+    const form = document.querySelector(".transaction-form");
     if (!form) {
         console.error('Transaction form not found');
         return;
     }
+    // Set up transaction-specific form logic
+    initTransactionFormSpecifics();
     // Set up form field navigation (Tab, Escape)
     initializeFormSelection(form);
     setupFormClickHandlers(form);
     setupFormKeyboardHandlers();
-    // Set up transaction-specific form logic
-    initTransactionFormSpecifics();
     // Handle amount input validation (no negative numbers)
     setupAmountValidation(form);
     // Check if editing an existing transaction
@@ -87,7 +90,16 @@ async function initTransactionFormPage() {
 
     if (editingId) {
         // Load existing transaction data into form
-        await loadTransactionForEditing(editingId, form);
+        try {
+            await loadTransactionForEditing(editingId, form);
+        } catch (error) {
+            console.error('Failed to load transaction for editing:', error);
+            // Clear the invalid ID and show alert
+            sessionStorage.removeItem('editingTransactionId');
+            alert('Transaction not found. It may have been deleted.');
+            // Redirect to list
+            // window.location.href = ROUTES.TRANSACTIONS;
+        }
     }
     form.addEventListener('submit', saveTransaction);
 }
@@ -115,6 +127,8 @@ async function initBudgetFormPage() {
     setupFormKeyboardHandlers();
     initBudgetFormSpecifics();
     setupAmountValidation(form);
+    setupCheckboxNavigation(form);
+
 
     const editingId = sessionStorage.getItem('editingBudgetId');
 
@@ -146,18 +160,22 @@ async function loadBudgetForEditing(editingId, form) {
     const nameInput = document.getElementById('name');
     if (nameInput) nameInput.value = data.name || '';
 
-    const limitInput = document.getElementById('limit');
+    const limitInput = document.getElementById('amount');
     if (limitInput && data.limit) {
         limitInput.value = parseFloat(data.limit.replace('$', ''));
     }
 
-    const categoriesInput = document.getElementById('categories');
-    if (categoriesInput && data.categories) {
-        if (Array.isArray(data.categories)) {
-            categoriesInput.value = data.categories.map(cat => cat.name).join(', ');
-        } else {
-            categoriesInput.value = data.categories;
-        }
+    // Check the appropriate category checkboxes
+    if (data.categories && Array.isArray(data.categories)) {
+        const categoryNames = data.categories.map(cat => cat.name.toLowerCase().replace(/ & /g, '_and_').replace(/ /g, '_'));
+
+        const checkboxes = form.querySelectorAll('input[name="categories"]');
+        checkboxes.forEach(checkbox => {
+            const checkboxLabel = checkbox.nextElementSibling.textContent.trim().toLowerCase().replace(/ & /g, '_and_').replace(/ /g, '_');
+            if (categoryNames.includes(checkboxLabel)) {
+                checkbox.checked = true;
+            }
+        });
     }
 
     const submitButton = form.querySelector('button[type="submit"]');
@@ -185,6 +203,24 @@ function setupGlobalKeyboardShortcuts() {
                 window.location = ROUTES.BUDGETS;
             }
         }
+    });
+}
+
+function setupNavLinkHandlers() {
+    // Clear transaction editing ID when clicking "New Transaction"
+    const newTransactionLinks = document.querySelectorAll('a[href="/transactions/add"]');
+    newTransactionLinks.forEach(link => {
+        link.addEventListener('click', function () {
+            sessionStorage.removeItem('editingTransactionId');
+        });
+    });
+
+    // Clear budget editing ID when clicking "New Budget"
+    const newBudgetLinks = document.querySelectorAll('a[href="/budgets/add"]');
+    newBudgetLinks.forEach(link => {
+        link.addEventListener('click', function () {
+            sessionStorage.removeItem('editingBudgetId');
+        });
     });
 }
 
@@ -227,10 +263,57 @@ function setupCardListNavigation() {
     });
 }
 
+function setupCheckboxNavigation(form) {
+    const checkboxes = Array.from(form.querySelectorAll('input[type="checkbox"][name="categories"]'));
+
+    if (checkboxes.length === 0) return;
+
+    checkboxes.forEach((checkbox, index) => {
+        const label = checkbox.closest('.checkbox-item');
+
+        // Make checkbox labels focusable
+        label.setAttribute('tabindex', '0');
+
+        // Handle keyboard navigation on checkbox labels
+        label.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                checkbox.checked = !checkbox.checked;
+            } else if (e.key === 'Tab') {
+                // Let Tab work naturally
+                return;
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                const nextIndex = (index + 1) % checkboxes.length;
+                checkboxes[nextIndex].closest('.checkbox-item').focus();
+            } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                const prevIndex = (index - 1 + checkboxes.length) % checkboxes.length;
+                checkboxes[prevIndex].closest('.checkbox-item').focus();
+            }
+        });
+
+        // Handle clicks on the label to toggle checkbox
+        label.addEventListener('click', (e) => {
+            if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+        });
+    });
+}
+
 function initializeFormSelection(form) {
     if (!form) return;
 
-    formFields = Array.from(form.querySelectorAll('input, select, textarea, button[type="submit"]'));
+    const customSelects = Array.from(form.querySelectorAll('.custom-select'));
+    const regularInputs = Array.from(form.querySelectorAll('input[type="text"], input[type="number"], textarea, button[type="submit"]'));
+    const checkboxLabels = Array.from(form.querySelectorAll('.checkbox-item'));
+    const submitButton = Array.from(form.querySelectorAll('button[type="submit"]'));
+
+
+    formFields = [...customSelects, ...regularInputs, ...checkboxLabels, ...submitButton].sort((a, b) => {
+        return (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+    });
 
     formSelected = true;
     form.classList.add('selected');
@@ -238,7 +321,9 @@ function initializeFormSelection(form) {
     if (formFields.length > 0) {
         currentFieldIndex = 0;
         formFields[0].focus();
-        formFields[0].select(); // Select text if it's a text input
+        if (formFields[0].select) {
+            formFields[0].select();
+        }
     }
 }
 
@@ -268,18 +353,69 @@ function initializeDeletionPrompt() {
 }
 
 function initTransactionFormSpecifics() {
-    const kindSelect = document.getElementById('kind');
+    const kindSelectElement = document.getElementById('kind-select');
     const categoryCard = document.getElementById('category-card');
     const categorySelectElement = document.getElementById('category-select');
 
-    if (!kindSelect || !categoryCard || !categorySelectElement) return;
+    if (!kindSelectElement || !categoryCard || !categorySelectElement) return;
+
+    // Initialize both custom selects
+    const kindSelect = initCustomSelect(kindSelectElement, [
+        {value: 'expense', label: 'Expense'},
+        {value: 'income', label: 'Income'}
+    ]);
+    console.log(kindSelect)
 
     const categorySelect = initCustomSelect(categorySelectElement);
 
+    // Disable category card initially
     categoryCard.classList.add('disabled');
 
-    kindSelect.addEventListener('change', function () {
-        const selectedType = this.value;
+    // Track the previous kind to detect changes
+    let previousKind = document.getElementById('kind').value;
+
+    // Listen for kind changes
+    const kindHiddenInput = document.getElementById('kind');
+    const observer = new MutationObserver(() => {
+        const selectedType = kindHiddenInput.value;
+        console.log('🔔 Input event fired! Selected type:', selectedType);
+
+        // If kind changed (not just initial load), clear the category
+        if (previousKind && previousKind !== selectedType) {
+            const categoryHiddenInput = document.getElementById('category');
+            categoryHiddenInput.value = '';
+            const categorySelected = categorySelectElement.querySelector('.select-selected');
+            if (categorySelected) {
+                categorySelected.textContent = 'Select category...';
+            }
+        }
+        previousKind = selectedType;
+
+        if (selectedType && CATEGORIES[selectedType]) {
+            categorySelect.setOptions(CATEGORIES[selectedType]);
+            categoryCard.classList.remove('disabled');
+        } else {
+            categorySelect.clear();
+            categoryCard.classList.add('disabled');
+        }
+    });
+
+    observer.observe(kindHiddenInput, {attributes: true, attributeFilter: ['value']});
+
+    // Also trigger on direct input events
+    kindHiddenInput.addEventListener('input', () => {
+        const selectedType = kindHiddenInput.value;
+
+        // If kind changed, clear the category
+        if (previousKind && previousKind !== selectedType) {
+            const categoryHiddenInput = document.getElementById('category');
+            categoryHiddenInput.value = '';
+            const categorySelected = categorySelectElement.querySelector('.select-selected');
+            if (categorySelected) {
+                categorySelected.textContent = 'Select category...';
+            }
+        }
+        previousKind = selectedType;
 
         if (selectedType && CATEGORIES[selectedType]) {
             categorySelect.setOptions(CATEGORIES[selectedType]);
@@ -290,6 +426,7 @@ function initTransactionFormSpecifics() {
         }
     });
 }
+
 
 function setupAmountValidation(form) {
     const amountInput = form.querySelector('input[name="amount"]');
@@ -318,9 +455,41 @@ function saveTransaction(event) {
     const formData = new FormData(event.target);
     const editingId = sessionStorage.getItem('editingTransactionId');
 
+    // Convert category value to label
+    const categoryValue = formData.get('category');
+    const kind = formData.get('kind');
+
+    console.log('==================');
+    console.log('categoryValue:', categoryValue);
+    console.log('kind:', kind);
+    console.log('CATEGORIES:', CATEGORIES);
+    console.log('CATEGORIES[kind]:', CATEGORIES[kind]);
+    console.log('==================');
+
+    let categoryLabel = categoryValue;
+
+    if (kind && CATEGORIES[kind]) {
+        console.log('✅ Inside if condition');
+        const found = CATEGORIES[kind].find(cat => {
+            console.log(`Comparing cat.value "${cat.value}" with categoryValue "${categoryValue}"`);
+            return cat.value === categoryValue;
+        });
+        console.log('Found:', found);
+        if (found) {
+            categoryLabel = found.label;
+            console.log('Set categoryLabel to:', categoryLabel);
+        }
+    } else {
+        console.log('❌ If condition NOT met');
+        console.log('kind exists?', !!kind);
+        console.log('CATEGORIES[kind] exists?', !!CATEGORIES[kind]);
+    }
+
+    console.log('Final categoryLabel:', categoryLabel);
+
     const transactionData = {
         amount: formData.get('amount'),
-        category: formData.get('category'),
+        category: categoryLabel,
         kind: formData.get('kind'),
         notes: formData.get('notes') || '',
     };
@@ -338,6 +507,7 @@ function saveTransaction(event) {
         body: JSON.stringify(transactionData)
     })
         .then(response => {
+            console.log(JSON.stringify(transactionData))
             if (!response.ok) {
                 throw new Error('Failed to create transaction');
             }
@@ -363,16 +533,72 @@ async function loadTransactionForEditing(editingId, form) {
     const data = await response.json();
 
     document.getElementById('amount').value = parseFloat(data.amount.replace('$', ''));
-    document.getElementById('kind').value = data.kind;
-    document.getElementById('category').value = data.category;
     document.getElementById('notes').value = data.notes || '';
 
-    form.querySelector('button[type="submit"]').textContent = 'Save Transaction';
+    // Set kind first, which will trigger category options to populate
+    const kindHiddenInput = document.getElementById('kind');
+    kindHiddenInput.value = data.kind;
 
-    const kindSelect = document.getElementById('kind');
-    if (kindSelect) {
-        kindSelect.dispatchEvent(new Event('change'));
+    // Update the kind select display
+    const kindSelectElement = document.getElementById('kind-select');
+    if (kindSelectElement) {
+        const kindSelected = kindSelectElement.querySelector('.select-selected');
+        const kindItems = kindSelectElement.querySelector('.select-items');
+        const kindOption = kindItems.querySelector(`[data-value="${data.kind}"]`);
+        if (kindSelected && kindOption) {
+            kindSelected.textContent = kindOption.textContent;
+            kindItems.querySelectorAll('div').forEach(opt => {
+                opt.classList.toggle('same-as-selected', opt.getAttribute('data-value') === data.kind);
+            });
+        }
     }
+
+    // Dispatch input event to populate categories
+    kindHiddenInput.dispatchEvent(new Event('input', {bubbles: true}));
+
+    // Use requestAnimationFrame to wait for DOM update after categories populate
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            // Find the category value from CATEGORIES config by matching the label
+            let categoryValue = null;
+            if (data.kind && CATEGORIES[data.kind]) {
+                const matchedCategory = CATEGORIES[data.kind].find(
+                    cat => cat.label.toLowerCase() === data.category.toLowerCase()
+                );
+                categoryValue = matchedCategory ? matchedCategory.value : null;
+            }
+
+            console.log('🔍 Looking for category label:', data.category);
+            console.log('🔍 Found category value:', categoryValue);
+
+            if (!categoryValue) {
+                console.error('❌ Could not find matching category value for label:', data.category);
+                return;
+            }
+
+            const categoryHiddenInput = document.getElementById('category');
+            categoryHiddenInput.value = categoryValue;
+
+            // Update the category select display
+            const categorySelectElement = document.getElementById('category-select');
+            if (categorySelectElement) {
+                const categorySelected = categorySelectElement.querySelector('.select-selected');
+                const categoryItems = categorySelectElement.querySelector('.select-items');
+                const categoryOption = categoryItems.querySelector(`[data-value="${categoryValue}"]`);
+
+                if (categorySelected && categoryOption) {
+                    categorySelected.textContent = categoryOption.textContent;
+                    categoryItems.querySelectorAll('div').forEach(opt => {
+                        opt.classList.toggle('same-as-selected', opt.getAttribute('data-value') === categoryValue);
+                    });
+                } else {
+                    console.error('❌ Could not find category option for value:', categoryValue);
+                }
+            }
+        });
+    });
+
+    form.querySelector('button[type="submit"]').textContent = 'Save Transaction';
 }
 
 function saveBudget(event) {
@@ -381,11 +607,28 @@ function saveBudget(event) {
     const formData = new FormData(event.target);
     const editingId = sessionStorage.getItem('editingBudgetId');
 
+    // Get all checked categories
+    const checkedCategories = Array.from(event.target.querySelectorAll('input[name="categories"]:checked'));
+
+    // Frontend validation - at least one category must be selected
+    if (checkedCategories.length === 0) {
+        alert('Please select at least one category for this budget.');
+        return;
+    }
+
+    // Convert checked values to labels for storage
+    const categoriesArray = checkedCategories.map(checkbox => {
+        const label = checkbox.nextElementSibling.textContent.trim();
+        return {name: label};
+    });
+
     const budgetData = {
         name: formData.get('name'),
         limit: formData.get('amount'),
-        categories: formData.get('categories'),
+        categories: categoriesArray,
     };
+
+    console.log('Sending budget data:', budgetData);
 
     const url = editingId
         ? `/api/budgets/${editingId}`
@@ -401,17 +644,20 @@ function saveBudget(event) {
     })
         .then(response => {
             if (!response.ok) {
-                throw new Error('Failed to create budget');
+                return response.json().then(err => {
+                    throw new Error(err.error || 'Failed to save budget');
+                });
             }
             return response.json();
         })
         .then(data => {
-            console.log('Budget created:', data);
+            console.log('Budget saved:', data);
+            sessionStorage.removeItem('editingBudgetId');
             window.location.href = '/budgets';
         })
         .catch(error => {
-            console.error('Error creating budget:', error);
-            alert('Failed to create budget. Please try again.');
+            console.error('Error saving budget:', error);
+            alert(error.message || 'Failed to save budget. Please try again.');
         });
 }
 
@@ -579,6 +825,8 @@ function editSelected(cards) {
 }
 
 function showDeletionPrompt(cards) {
+    const emptyCard = document.querySelector(".empty-state");
+    if (emptyCard) return;
     if (!cards[selectedIndex]) return;
 
     deletionMode = true;
@@ -717,7 +965,7 @@ async function loadTransactions() {
         } else {
             container.innerHTML = `
     <div class="row-card empty-state">
-        <div class="card-main">
+        <div class="card-main empty-state">
             <div class="card-category">No transactions found! Press Enter or Return to add one!</div>
         </div>
     </div>
@@ -783,11 +1031,22 @@ async function loadBudgets() {
 }
 
 
-function initCustomSelect(selectElement) {
+function initCustomSelect(selectElement, initialOptions = null) {
     const selected = selectElement.querySelector('.select-selected');
     const items = selectElement.querySelector('.select-items');
     const hiddenInput = selectElement.parentElement.querySelector('input[type="hidden"]');
     let focusedIndex = -1;
+
+    // Make the select element focusable
+    selectElement.setAttribute('tabindex', '0');
+
+    // If initial options provided, populate them
+    if (initialOptions) {
+        items.innerHTML = initialOptions.map(opt =>
+            `<div data-value="${opt.value}" data-label="${opt.label}">${opt.label}</div>`
+        ).join('');
+        attachOptionListeners();
+    }
 
     // Toggle dropdown
     selected.addEventListener('click', (e) => {
@@ -806,6 +1065,10 @@ function initCustomSelect(selectElement) {
                 e.stopPropagation();
                 selected.textContent = option.textContent;
                 hiddenInput.value = option.getAttribute('data-value');
+
+                // Dispatch input event so listeners can react
+                hiddenInput.dispatchEvent(new Event('input', {bubbles: true}));
+
                 items.querySelectorAll('div').forEach(o => o.classList.remove('same-as-selected'));
                 option.classList.add('same-as-selected');
                 items.classList.add('select-hide');
@@ -858,7 +1121,7 @@ function initCustomSelect(selectElement) {
     return {
         setOptions: (optionsArray) => {
             items.innerHTML = optionsArray.map(cat =>
-                `<div data-value="${cat.value}">${cat.label}</div>`
+                `<div data-value="${cat.value}" data-label="${cat.label}">${cat.label}</div>`
             ).join('');
             attachOptionListeners();
         },

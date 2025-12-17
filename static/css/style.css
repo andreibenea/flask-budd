@@ -240,6 +240,7 @@ kbd {
 .prompt-options {
     display: flex;
     gap: 1rem;
+    padding: 0.5rem;
     justify-content: center;
 }
 
@@ -511,6 +512,11 @@ form button:hover {
     color: var(--accent-secondary);
 }
 
+.custom-select:focus {
+    outline: 1px dashed var(--accent-primary) !important;
+    box-shadow: 0 0 10px rgba(255, 106, 0, 0.3) !important;
+}
+
 /* Chrome, Safari, Edge, Opera */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
@@ -538,6 +544,16 @@ body:has(select:focus) nav kbd {
     color: var(--text-main);
 }
 
+
+@media (max-width: 806px) {
+    nav a:hover {
+    border-radius: unset;
+}
+
+nav a.active, nav a.active * {
+    border-radius: unset;
+}
+}
 /* BACKUPS */
 
 /*.new-transaction-container {*/
